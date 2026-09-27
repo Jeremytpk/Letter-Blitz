@@ -160,6 +160,16 @@
     }
   });
 
+  socket.on('connect_error', () => {
+    const msg = "Can't reach the game server. It may be waking up — try again in 30 seconds.";
+    if (!els.views.landing.hidden) {
+      els.landingError.textContent = msg;
+      els.landingError.hidden = false;
+    } else {
+      showToast(msg);
+    }
+  });
+
   socket.on('joined', ({ code, playerId }) => {
     myRoomCode = code;
     myPlayerId = playerId;
