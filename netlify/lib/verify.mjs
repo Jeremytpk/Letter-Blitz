@@ -6,7 +6,7 @@
 // player gets the benefit of the doubt).
 // ---------------------------------------------------------------------------
 
-const WIKI_LANGS = (process.env.WIKI_LANGS || 'en,fr')
+const WIKI_LANGS = ((typeof process !== 'undefined' && process.env.WIKI_LANGS) || 'en,fr')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -94,7 +94,7 @@ function remember(key, value) {
  * @param {string[]} texts
  * @returns {Promise<Map<string, boolean|null>>} keyed by the original text
  */
-async function checkAnswers(texts) {
+export async function checkAnswers(texts) {
   const unique = [...new Set(texts.filter((t) => t && t.trim()))];
   const results = new Map();
   let next = 0;
@@ -108,4 +108,3 @@ async function checkAnswers(texts) {
   return results;
 }
 
-module.exports = { checkAnswers };

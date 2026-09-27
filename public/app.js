@@ -1,8 +1,9 @@
 (() => {
-  // Game server URL comes from config.js (set when the frontend is hosted
-  // separately, e.g. on Netlify). Empty means same origin as this page.
-  const serverUrl = window.LETTER_BLITZ_SERVER || undefined;
-  const socket = io(serverUrl);
+  // The game runs in a Netlify Function (netlify/functions/game.mjs). Every
+  // phone polls it about once a second to stay in sync.
+  const API_URL = '/api/game';
+  const POLL_FAST_MS = 1000;
+  const POLL_SLOW_MS = 1500;
 
   const LS_NAME = 'lb_name';
   const LS_CODE = 'lb_code';
@@ -58,8 +59,105 @@
   let myRoomCode = localStorage.getItem(LS_CODE) || null;
   let currentState = null;
   let timerRAF = null;
+  let renderedRound = 0;
+  let clockOffset = 0; // server time - local time
+  let pollTimer = null;
+  let answerTimer = null;
+  let answersDirty = false;
+  let finalSentRound = 0;
   const answerInputs = new Map(); // catId -> input element
-  const answerDebounce = new Map(); // catId -> timeout id
+
+  function serverNow() {
+    return Date.now() + clockOffset;
+  }
+
+  async function api(action, payload = {}) {
+    const sentAt = Date.now();
+    let res;
+    let data;
+    try {
+      res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, code: myRoomCode, playerId: myPlayerId, ...payload }),
+      });
+      data = await res.json();
+    } catch {
+      throw new Error("Can't reach the game. Check your connection.");
+    }
+    if (typeof data.now === 'number') {
+      clockOffset = data.now - (sentAt + Date.now()) / 2;
+    }
+    if (!res.ok) {
+      const err = new Error(data.error || 'Something went wrong.');
+      err.fatal = res.status === 400 && /no longer in this room|Room not found/.test(data.error || '');
+      throw err;
+    }
+    if (data.playerId) {
+      myPlayerId = data.playerId;
+      localStorage.setItem(LS_PLAYER_ID, myPlayerId);
+    }
+    if (data.state) {
+      myRoomCode = data.state.code;
+      localStorage.setItem(LS_CODE, myRoomCode);
+      const prevPhase = currentState && currentState.phase;
+      currentState = data.state;
+      render(data.state, prevPhase);
+    }
+    return data;
+  }
+
+  function showError(message) {
+    if (!els.views.landing.hidden) {
+      els.landingError.textContent = message;
+      els.landingError.hidden = false;
+    } else {
+      showToast(message);
+    }
+  }
+
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    if (!myRoomCode || !myPlayerId) return;
+    const phase = currentState && currentState.phase;
+    const delay = phase === 'playing' || phase === 'checking' ? POLL_FAST_MS : POLL_SLOW_MS;
+    pollTimer = setTimeout(poll, delay);
+  }
+
+  async function poll() {
+    try {
+      await api('poll');
+    } catch (err) {
+      if (err.fatal) {
+        resetToLanding(err.message);
+        return;
+      }
+    }
+    schedulePoll();
+  }
+
+  function collectAnswers() {
+    const answers = {};
+    for (const [catId, input] of answerInputs) answers[catId] = input.value;
+    return answers;
+  }
+
+  async function sendAnswers() {
+    clearTimeout(answerTimer);
+    if (!answersDirty || !currentState) return;
+    answersDirty = false;
+    try {
+      await api('answers', { round: currentState.round, answers: collectAnswers() });
+    } catch {
+      answersDirty = true;
+    }
+  }
+
+  function queueAnswerSync() {
+    answersDirty = true;
+    clearTimeout(answerTimer);
+    answerTimer = setTimeout(sendAnswers, 600);
+  }
 
   function showToast(message) {
     els.toast.textContent = message;
@@ -123,15 +221,16 @@
       els.landingError.hidden = false;
       return;
     }
-    socket.emit('join_room', { code, name, playerId: myPlayerId });
+    myRoomCode = code;
+    enterRoom('join', { code, name });
   });
 
   els.btnCreate.addEventListener('click', () => {
     const name = landingName();
     if (!name) return;
-    socket.emit('create_room', {
+    myRoomCode = null;
+    enterRoom('create', {
       name,
-      playerId: myPlayerId,
       settings: {
         duration: Number(els.durationInput.value) * 1000,
         categoriesPerRound: Number(els.catcountInput.value),
@@ -139,70 +238,46 @@
     });
   });
 
-  function leaveRoom() {
-    socket.emit('leave_room');
-    myPlayerId = null;
+  async function enterRoom(action, payload) {
+    els.btnJoin.disabled = true;
+    els.btnCreate.disabled = true;
+    try {
+      await api(action, payload);
+      schedulePoll();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      els.btnJoin.disabled = false;
+      els.btnCreate.disabled = false;
+    }
+  }
+
+  function resetToLanding(message) {
+    clearTimeout(pollTimer);
+    clearTimeout(answerTimer);
+    cancelAnimationFrame(timerRAF);
     myRoomCode = null;
-    localStorage.removeItem(LS_PLAYER_ID);
     localStorage.removeItem(LS_CODE);
     currentState = null;
+    renderedRound = 0;
     showView('landing');
+    if (message) showError(message);
+  }
+
+  function leaveRoom() {
+    api('leave').catch(() => {});
+    resetToLanding();
   }
 
   els.btnLeaveLobby.addEventListener('click', leaveRoom);
+  els.btnStart.addEventListener('click', () => {
+    els.btnStart.disabled = true;
+    api('start').catch((err) => {
+      els.btnStart.disabled = false;
+      showToast(err.message);
+    });
+  });
   els.btnLeaveReveal.addEventListener('click', leaveRoom);
-
-  // ---------------- socket events ----------------
-
-  socket.on('connect', () => {
-    if (myRoomCode && myPlayerId) {
-      socket.emit('join_room', { code: myRoomCode, playerId: myPlayerId });
-    }
-  });
-
-  socket.on('connect_error', () => {
-    const msg = "Can't reach the game server. It may be waking up — try again in 30 seconds.";
-    if (!els.views.landing.hidden) {
-      els.landingError.textContent = msg;
-      els.landingError.hidden = false;
-    } else {
-      showToast(msg);
-    }
-  });
-
-  socket.on('joined', ({ code, playerId }) => {
-    myRoomCode = code;
-    myPlayerId = playerId;
-    localStorage.setItem(LS_CODE, code);
-    localStorage.setItem(LS_PLAYER_ID, playerId);
-  });
-
-  socket.on('error_message', ({ message }) => {
-    if (els.views.landing.hidden) {
-      showToast(message);
-    } else {
-      els.landingError.textContent = message;
-      els.landingError.hidden = false;
-    }
-  });
-
-  socket.on('your_answers', ({ answers }) => {
-    for (const [catId, text] of Object.entries(answers || {})) {
-      const input = answerInputs.get(catId);
-      if (input) input.value = text;
-    }
-  });
-
-  socket.on('progress', (progress) => {
-    if (currentState) currentState.progress = progress;
-    renderProgress(progress);
-  });
-
-  socket.on('state', (state) => {
-    const prevPhase = currentState && currentState.phase;
-    currentState = state;
-    render(state, prevPhase);
-  });
 
   // ---------------- render ----------------
 
@@ -211,7 +286,7 @@
       renderLobby(state);
       showView('lobby');
     } else if (state.phase === 'playing' || state.phase === 'checking') {
-      renderPlaying(state, prevPhase !== 'playing' && prevPhase !== 'checking');
+      renderPlaying(state);
       if (state.phase === 'checking') renderChecking();
       showView('playing');
     } else if (state.phase === 'reveal') {
@@ -245,11 +320,23 @@
     els.lobbyWaitNote.hidden = isHost;
   }
 
-  function renderPlaying(state, isFreshRound) {
+  function renderPlaying(state) {
     els.playingCode.textContent = state.code;
-    els.roundLetter.textContent = state.letter;
+    els.roundLetter.textContent = state.letter || '?';
 
-    if (isFreshRound) {
+    // During the 3-2-1 countdown the letter is still hidden.
+    if (!state.letter) {
+      els.categoryList.innerHTML = '';
+      answerInputs.clear();
+      renderedRound = 0;
+      startTimerLoop(state.startedAt, state.duration);
+      renderProgress(state.progress);
+      return;
+    }
+
+    if (renderedRound !== state.round) {
+      renderedRound = state.round;
+      answersDirty = false;
       els.categoryList.innerHTML = '';
       answerInputs.clear();
       for (const cat of state.categories) {
@@ -265,13 +352,8 @@
         row.querySelector('.category-label').textContent = cat.label;
         const input = row.querySelector('.category-input');
         input.placeholder = `Starts with ${state.letter}…`;
-        input.addEventListener('input', () => {
-          clearTimeout(answerDebounce.get(cat.id));
-          const t = setTimeout(() => {
-            socket.emit('answer_update', { catId: cat.id, text: input.value });
-          }, 220);
-          answerDebounce.set(cat.id, t);
-        });
+        input.value = (state.yourAnswers || {})[cat.id] || '';
+        input.addEventListener('input', queueAnswerSync);
         answerInputs.set(cat.id, input);
         els.categoryList.appendChild(row);
       }
@@ -309,7 +391,21 @@
   function startTimerLoop(startedAt, duration) {
     cancelAnimationFrame(timerRAF);
     function tick() {
-      const remaining = Math.max(0, startedAt + duration - Date.now());
+      const now = serverNow();
+      if (now < startedAt) {
+        els.timerText.textContent = `${Math.ceil((startedAt - now) / 1000)}…`;
+        els.roundLetter.textContent = String(Math.ceil((startedAt - now) / 1000));
+        els.timerFill.style.width = '100%';
+        timerRAF = requestAnimationFrame(tick);
+        return;
+      }
+      if (currentState && currentState.phase === 'playing' && !currentState.letter) {
+        // Countdown finished locally — fetch the letter right away.
+        clearTimeout(pollTimer);
+        poll();
+        return;
+      }
+      const remaining = Math.max(0, startedAt + duration - now);
       const secs = Math.ceil(remaining / 1000);
       const m = Math.floor(secs / 60);
       const s = secs % 60;
@@ -317,6 +413,12 @@
       els.timerFill.style.width = `${Math.max(0, (remaining / duration) * 100)}%`;
       if (remaining > 0 && currentState && currentState.phase === 'playing') {
         timerRAF = requestAnimationFrame(tick);
+      } else if (remaining === 0 && currentState && finalSentRound !== currentState.round) {
+        // Time's up: lock the inputs and send final answers once.
+        finalSentRound = currentState.round;
+        for (const input of answerInputs.values()) input.disabled = true;
+        answersDirty = answerInputs.size > 0;
+        sendAnswers();
       }
     }
     tick();
@@ -329,7 +431,9 @@
 
     const playersById = new Map(state.players.map((p) => [p.id, p]));
     const winner = playersById.get(reveal.winnerId);
-    const amWinner = reveal.winnerId === myPlayerId;
+    // The winner picks the next letter; if they've left, the host does.
+    const winnerAway = !playersById.get(reveal.winnerId) || !playersById.get(reveal.winnerId).connected;
+    const amWinner = reveal.winnerId === myPlayerId || (winnerAway && state.hostId === myPlayerId);
     const roundScore = reveal.roundScores[myPlayerId] || 0;
 
     els.revealBanner.textContent = winner
@@ -411,7 +515,7 @@
         btn.className = 'letter-btn';
         btn.textContent = L;
         btn.addEventListener('click', () => {
-          socket.emit('choose_letter', { letter: L });
+          api('chooseLetter', { letter: L }).catch((err) => showToast(err.message));
         });
         els.letterGrid.appendChild(btn);
       }
@@ -422,4 +526,11 @@
   }
 
   setTab('join');
+
+  // Rejoin the room after a refresh.
+  if (myRoomCode && myPlayerId) {
+    api('join', { code: myRoomCode })
+      .then(schedulePoll)
+      .catch(() => resetToLanding());
+  }
 })();

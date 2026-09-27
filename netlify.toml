@@ -1,5 +1,7 @@
-# Netlify hosts the frontend only. The real-time game server (server.js) needs
-# a persistent WebSocket host such as Render — see README.
+# Everything runs on Netlify: the page is served from public/ and the game
+# itself runs in netlify/functions/game.mjs, with rooms stored in Netlify Blobs.
 [build]
   publish = "public"
-  command = "echo \"window.LETTER_BLITZ_SERVER = '${GAME_SERVER_URL}';\" > public/config.js"
+
+[functions]
+  directory = "netlify/functions"

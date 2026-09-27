@@ -45,12 +45,12 @@
 
     <div class="card" id="panel-create" hidden>
       <label class="field">
-        <span class="field-label">Round length: <span id="duration-out">60</span>s</span>
-        <input id="duration-input" type="range" min="20" max="120" step="10" value="60" />
+        <span class="field-label">Round length: <span id="duration-out">90</span>s</span>
+        <input id="duration-input" type="range" min="20" max="180" step="10" value="90" />
       </label>
       <label class="field">
-        <span class="field-label">Categories per round: <span id="catcount-out">6</span></span>
-        <input id="catcount-input" type="range" min="4" max="8" step="1" value="6" />
+        <span class="field-label">Categories per round: <span id="catcount-out">9</span></span>
+        <input id="catcount-input" type="range" min="4" max="12" step="1" value="9" />
       </label>
       <button class="btn btn-primary" id="btn-create">Create room</button>
     </div>
@@ -121,8 +121,6 @@
 
 <div class="toast" id="toast" hidden></div>
 
-<script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
-<script src="/config.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

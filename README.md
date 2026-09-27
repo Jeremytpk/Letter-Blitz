@@ -1,63 +1,33 @@
 # Letter Blitz
 
 A live, by-letter party game. The group gets a letter (e.g. **L**), and everyone
-races to fill every category &mdash; country, boy's name, girl's name, celebrity,
-capital city, and more &mdash; with a word that starts with that letter before the
-clock runs out. Answers are revealed to everyone at once; a matching answer
-between two players scores nobody, a unique valid answer scores 10. Whoever
-scored highest that round picks the next letter, and every player's screen
-gets the green light together when the next round starts.
+races to fill every category &mdash; Country, Capital City, City, Man's Name,
+Woman's Name, Singer, Car, Comedian or Actor, Fruit and more &mdash; with a word
+that starts with that letter before the clock runs out. Answers are revealed to
+everyone at once; a matching answer between two players scores nobody, a unique
+real answer scores 10. Whoever scored highest that round picks the next letter.
 
-No sign-up: players just type a name to join. Real-time sync is powered by a
-small Node + Socket.IO server, so everyone needs the app open at the same URL.
+No sign-up: players just type a name to join. There is no separate server:
+the whole game runs on **Netlify** &mdash; the page from `public/`, the game logic
+in a Netlify Function (`netlify/functions/game.mjs`), and rooms stored in
+Netlify Blobs. Each phone checks in about once a second to stay in sync.
+
+## Deploy
+
+1. On [netlify.com](https://netlify.com), **Add new site \+ Import from Git** and
+   pick this repo. `netlify.toml` already has the right settings.
+2. Deploy. Share the site URL &mdash; that's it. Netlify Blobs needs no setup.
+
+Every push to `main` redeploys automatically.
 
 ## Run it locally
 
 ```bash
 npm install
-npm start
+npx netlify-cli dev
 ```
 
-Open `http://localhost:3000` on your own machine.
-
-**To play with friends on the same WiFi** (e.g. everyone in the same room),
-find your computer's local IP address and share `http://<that-ip>:3000`
-instead of `localhost`:
-
-- Mac: `ipconfig getifaddr en0` (or `en1` on Wi-Fi-only Macs)
-- Windows: `ipconfig` and look for "IPv4 Address"
-
-Everyone on the same network can then open that address on their phone.
-
-## Deploy it so anyone can join from anywhere
-
-The app has two parts:
-
-- **Frontend** (`public/`) &mdash; static files, hosted on **Netlify**.
-- **Game server** (`server.js`) &mdash; keeps a live WebSocket open to every
-  player, so it needs a host that runs a long-lived Node process. Netlify
-  can't do that, so the server runs on **Render** (free).
-
-### 1. Game server on Render
-
-1. On [render.com](https://render.com), click **New \+ Blueprint** (or
-   **Web Service**) and connect this GitHub repo. `render.yaml` sets it up:
-   build `npm install`, start `npm start`.
-2. Deploy and copy the URL, e.g. `https://letter-blitz.onrender.com`.
-3. Optional: set the env var `ALLOWED_ORIGINS` to your Netlify URL
-   (e.g. `https://letter-blitz.netlify.app`) so only your site can connect.
-
-### 2. Frontend on Netlify
-
-1. On [netlify.com](https://netlify.com), **Add new site \+ Import from Git**
-   and pick this repo. `netlify.toml` already sets the publish folder.
-2. In **Site configuration \+ Environment variables**, add
-   `GAME_SERVER_URL` = your Render URL from step 1.
-3. Deploy (or redeploy after adding the variable). Share the Netlify URL
-   with everyone.
-
-> Render's free tier sleeps after inactivity, so the first player to open
-> the site after a while may wait ~30 seconds for it to wake up.
+Open the URL it prints (usually `http://localhost:8888`).
 
 ## How a game works
 
@@ -79,12 +49,11 @@ The app has two parts:
 ## Notes
 
 - The online check only confirms an answer *exists*, not that it fits the
-  category ("Ghana" passes as a food). Players still judge that part.
+  category ("Ghana" passes as a fruit). Players still judge that part.
   If Wikipedia can't be reached, answers get the benefit of the doubt.
-  Set `WIKI_LANGS` (default `en,fr`) on the server to change languages.
-
-- State lives in server memory (no database) &mdash; a server restart clears any
-  rooms in progress. Fine for a live party game; not meant for long-term
-  persistence.
-- Category bank and the 20 built-in prompts live in `server.js`
-  (`CATEGORY_BANK`) &mdash; edit that array to add or change categories.
+  Set the `WIKI_LANGS` environment variable on Netlify (default `en,fr`) to
+  change languages.
+- Rounds start with a 3-2-1 countdown so every phone starts at the same moment.
+- Categories live in `netlify/lib/game.mjs` (`CATEGORY_BANK`). The nine core
+  ones are used first; extras are mixed in when a room asks for more than nine.
+- Rooms expire after 12 hours.
