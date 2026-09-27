@@ -8,7 +8,7 @@
 // out triggers the end of the round.
 // ---------------------------------------------------------------------------
 
-import { checkAnswers } from './verify.mjs';
+import { checkCategories } from './category.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -43,6 +43,7 @@ const ONLINE_MS = 15000; // no poll for this long = shown as disconnected
 const LAST_SEEN_WRITE_MS = 8000;
 const CHECK_TAKEOVER_MS = 20000; // if a checker dies, another poll takes over
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
+const CHECK_TIME_LIMIT_MS = 7000; // Netlify stops a function after 10s
 
 export class GameError extends Error {}
 
@@ -138,10 +139,12 @@ function scoreRound(room, found) {
     });
     const entries = rows.map(({ playerId, text, norm, valid }) => {
       const unique = valid && groups.get(norm) === 1;
-      // true = found online, false = can't be found, null = lookup failed
-      const exists = valid ? (found.has(text) ? found.get(text) : null) : null;
-      const points = unique && exists !== false ? 10 : 0;
-      return { playerId, text, valid, unique, exists, points };
+      // exists: is it a real thing?  fits: is it the right kind of thing for this category?
+      // Each is true, false, or null when it couldn't be checked (benefit of the doubt).
+      const check = (valid && found.get(`${cat.id}|${text}`)) || { exists: null, fits: null };
+      const { exists, fits } = check;
+      const points = unique && exists !== false && fits !== false ? 10 : 0;
+      return { playerId, text, valid, unique, exists, fits, points };
     });
     return { catId: cat.id, label: cat.label, entries };
   });
@@ -201,7 +204,7 @@ function publicState(room, playerId, now) {
   };
 }
 
-export function createGame(store, { now = () => Date.now(), verify = checkAnswers } = {}) {
+export function createGame(store, { now = () => Date.now(), verify = checkCategories } = {}) {
   async function load(code) {
     const res = await store.getWithMetadata(roomKey(code), { type: 'json', consistency: 'strong' });
     if (!res || !res.data) return null;
@@ -241,17 +244,17 @@ export function createGame(store, { now = () => Date.now(), verify = checkAnswer
     if (!claimed) return room;
 
     const letter = room.letter.toLowerCase();
-    const texts = [];
+    const toCheck = [];
     for (const answers of Object.values(room.answers)) {
       for (const cat of room.categories) {
         const raw = String(answers[cat.id] || '').trim();
         const norm = normalize(raw);
-        if (norm && norm[0] === letter) texts.push(raw);
+        if (norm && norm[0] === letter) toCheck.push({ catId: cat.id, text: raw });
       }
     }
     let found = new Map();
     try {
-      found = await verify(texts);
+      found = await verify(toCheck, { timeLimitMs: CHECK_TIME_LIMIT_MS });
     } catch (err) {
       console.warn('Answer check failed:', err.message);
     }

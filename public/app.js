@@ -458,7 +458,8 @@
         const chip = document.createElement('div');
         const hasText = entry.text && entry.text.length > 0;
         const notFound = entry.valid && entry.exists === false;
-        chip.className = 'answer-chip ' + (entry.valid && !notFound ? 'valid' : 'invalid');
+        const wrongCategory = entry.valid && !notFound && entry.fits === false;
+        chip.className = 'answer-chip ' + (entry.valid && !notFound && !wrongCategory ? 'valid' : 'invalid');
         chip.innerHTML = `
           <span class="answer-chip-name"></span>
           <span class="answer-chip-text"></span>
@@ -475,10 +476,12 @@
         let pointsLabel = '—';
         if (entry.points > 0) pointsLabel = `+${entry.points}`;
         else if (notFound) pointsLabel = 'not found';
+        else if (wrongCategory) pointsLabel = 'wrong category';
         else if (!entry.valid && hasText) pointsLabel = 'wrong letter';
         else if (hasText) pointsLabel = 'dupe';
         chip.querySelector('.answer-chip-points').textContent = pointsLabel;
         if (notFound) chip.title = "Couldn't find this online — marked as doesn't exist";
+        if (wrongCategory) chip.title = `Found online, but it isn't a ${cat.label.toLowerCase()}`;
         answers.appendChild(chip);
       }
       block.appendChild(answers);
