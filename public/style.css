@@ -457,6 +457,16 @@ input[type="range"] {
   flex-shrink: 0;
 }
 .answer-chip.valid .answer-chip-points { color: var(--good); }
+.answer-chip.invalid .answer-chip-points { color: var(--bad); }
+
+.checking-note {
+  width: 100%;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.category-input:disabled { opacity: 0.7; }
 
 .leaderboard { display: flex; flex-direction: column; gap: 8px; }
 .leaderboard-title { font-size: 16px; }

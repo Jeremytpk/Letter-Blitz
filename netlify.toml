@@ -1,0 +1,5 @@
+# Netlify hosts the frontend only. The real-time game server (server.js) needs
+# a persistent WebSocket host such as Render — see README.
+[build]
+  publish = "public"
+  command = "echo \"window.LETTER_BLITZ_SERVER = '${GAME_SERVER_URL}';\" > public/config.js"

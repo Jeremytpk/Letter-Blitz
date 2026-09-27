@@ -2,10 +2,20 @@ const path = require('path');
 const express = require('express');
 const { Server } = require('socket.io');
 const http = require('http');
+const { checkAnswers } = require('./verify');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// The frontend may be hosted elsewhere (e.g. Netlify). ALLOWED_ORIGINS is a
+// comma-separated list of sites allowed to connect; unset allows any origin.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+const io = new Server(server, {
+  cors: { origin: allowedOrigins.length ? allowedOrigins : true },
+});
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -89,7 +99,7 @@ function createRoom(settings) {
     code,
     hostId: null,
     players: new Map(), // playerId -> player
-    phase: 'lobby', // lobby | playing | reveal
+    phase: 'lobby', // lobby | playing | checking | reveal
     letter: null,
     categories: [],
     round: 0,
@@ -192,9 +202,31 @@ function startRound(room, letter, categories) {
   broadcast(room);
 }
 
-function endRound(room) {
+async function endRound(room) {
   if (room.phase !== 'playing') return;
   room.timer = null;
+  const round = room.round;
+
+  // Lock answers and tell everyone we're checking them online.
+  room.phase = 'checking';
+  broadcast(room);
+
+  const toCheck = [];
+  for (const p of room.players.values()) {
+    for (const cat of room.categories) {
+      const raw = (p.answers[cat.id] || '').trim();
+      const norm = normalize(raw);
+      if (norm.length > 0 && norm[0] === room.letter.toLowerCase()) toCheck.push(raw);
+    }
+  }
+  let found = new Map();
+  try {
+    found = await checkAnswers(toCheck);
+  } catch (err) {
+    console.warn('Answer check failed:', err.message);
+  }
+  // Room may have been deleted or moved on while we waited.
+  if (rooms.get(room.code) !== room || room.phase !== 'checking' || room.round !== round) return;
 
   // Group normalized answers per category to find duplicates.
   const perCategory = room.categories.map((cat) => {
@@ -213,8 +245,10 @@ function endRound(room) {
       const valid = norm.length > 0 && norm[0] === room.letter.toLowerCase();
       const group = valid ? groups.get(norm) : null;
       const unique = valid && group && group.length === 1;
-      const points = unique ? 10 : 0;
-      return { playerId: p.id, text: raw, valid, unique, points };
+      // true = found online, false = can't be found, null = not checked / lookup failed
+      const exists = valid ? (found.has(raw) ? found.get(raw) : null) : null;
+      const points = unique && exists !== false ? 10 : 0;
+      return { playerId: p.id, text: raw, valid, unique, exists, points };
     });
     return { catId: cat.id, label: cat.label, entries };
   });

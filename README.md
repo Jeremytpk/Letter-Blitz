@@ -31,27 +31,33 @@ Everyone on the same network can then open that address on their phone.
 
 ## Deploy it so anyone can join from anywhere
 
-This app needs a host that keeps a **persistent WebSocket connection** open
-(not a serverless/edge platform like Vercel's default functions). Good free
-options:
+The app has two parts:
 
-### Render.com (recommended, easiest)
+- **Frontend** (`public/`) &mdash; static files, hosted on **Netlify**.
+- **Game server** (`server.js`) &mdash; keeps a live WebSocket open to every
+  player, so it needs a host that runs a long-lived Node process. Netlify
+  can't do that, so the server runs on **Render** (free).
 
-1. Push this folder to a GitHub repo.
-2. On [render.com](https://render.com), click **New \+ Web Service**, connect
-   the repo.
-3. Build command: `npm install`  Start command: `npm start`
-4. Deploy. Render gives you a public `https://your-app.onrender.com` URL &mdash;
-   share that with friends.
+### 1. Game server on Render
 
-### Railway.app / Fly.io
+1. On [render.com](https://render.com), click **New \+ Blueprint** (or
+   **Web Service**) and connect this GitHub repo. `render.yaml` sets it up:
+   build `npm install`, start `npm start`.
+2. Deploy and copy the URL, e.g. `https://letter-blitz.onrender.com`.
+3. Optional: set the env var `ALLOWED_ORIGINS` to your Netlify URL
+   (e.g. `https://letter-blitz.netlify.app`) so only your site can connect.
 
-Both work the same way: point them at this repo, they auto-detect Node,
-`npm start` boots the server, you get a public URL.
+### 2. Frontend on Netlify
 
-> Free tiers on these platforms may sleep the server after inactivity, which
-> just means the first join after a while takes a few extra seconds to wake
-> up &mdash; the game itself isn't affected once everyone's connected.
+1. On [netlify.com](https://netlify.com), **Add new site \+ Import from Git**
+   and pick this repo. `netlify.toml` already sets the publish folder.
+2. In **Site configuration \+ Environment variables**, add
+   `GAME_SERVER_URL` = your Render URL from step 1.
+3. Deploy (or redeploy after adding the variable). Share the Netlify URL
+   with everyone.
+
+> Render's free tier sleeps after inactivity, so the first player to open
+> the site after a while may wait ~30 seconds for it to wake up.
 
 ## How a game works
 
@@ -63,11 +69,19 @@ Both work the same way: point them at this repo, they auto-detect Node,
 4. When time's up, every player's answers are revealed to the whole group at
    once, scored automatically (unique valid answer = 10 pts, an answer two or
    more players share = 0 pts for all of them, blank or wrong-letter = 0).
+   Before scoring, every answer is looked up online (Wikipedia, English and
+   French). Anything that can't be found &mdash; a made-up name or word &mdash;
+   is marked **not found** and scores 0.
 5. The round's top scorer picks the next letter. The moment they pick it, the
    next round starts for everyone at the same time.
 6. Total scores carry across rounds &mdash; play as many rounds as you like.
 
 ## Notes
+
+- The online check only confirms an answer *exists*, not that it fits the
+  category ("Ghana" passes as a food). Players still judge that part.
+  If Wikipedia can't be reached, answers get the benefit of the doubt.
+  Set `WIKI_LANGS` (default `en,fr`) on the server to change languages.
 
 - State lives in server memory (no database) &mdash; a server restart clears any
   rooms in progress. Fine for a live party game; not meant for long-term

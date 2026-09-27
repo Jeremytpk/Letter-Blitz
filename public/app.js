@@ -1,5 +1,8 @@
 (() => {
-  const socket = io();
+  // Game server URL comes from config.js (set when the frontend is hosted
+  // separately, e.g. on Netlify). Empty means same origin as this page.
+  const serverUrl = window.LETTER_BLITZ_SERVER || undefined;
+  const socket = io(serverUrl);
 
   const LS_NAME = 'lb_name';
   const LS_CODE = 'lb_code';
@@ -197,8 +200,9 @@
     if (state.phase === 'lobby') {
       renderLobby(state);
       showView('lobby');
-    } else if (state.phase === 'playing') {
-      renderPlaying(state, prevPhase !== 'playing');
+    } else if (state.phase === 'playing' || state.phase === 'checking') {
+      renderPlaying(state, prevPhase !== 'playing' && prevPhase !== 'checking');
+      if (state.phase === 'checking') renderChecking();
       showView('playing');
     } else if (state.phase === 'reveal') {
       renderReveal(state);
@@ -269,6 +273,14 @@
     renderProgress(state.progress);
   }
 
+  function renderChecking() {
+    cancelAnimationFrame(timerRAF);
+    els.timerText.textContent = 'Checking…';
+    els.timerFill.style.width = '0%';
+    for (const input of answerInputs.values()) input.disabled = true;
+    els.progressRow.innerHTML = '<div class="checking-note">⏱ Time\'s up! Checking answers online…</div>';
+  }
+
   function renderProgress(progress) {
     if (!progress || !currentState) return;
     els.progressRow.innerHTML = '';
@@ -331,7 +343,8 @@
         if (!player) continue;
         const chip = document.createElement('div');
         const hasText = entry.text && entry.text.length > 0;
-        chip.className = 'answer-chip ' + (entry.valid ? 'valid' : 'invalid');
+        const notFound = entry.valid && entry.exists === false;
+        chip.className = 'answer-chip ' + (entry.valid && !notFound ? 'valid' : 'invalid');
         chip.innerHTML = `
           <span class="answer-chip-name"></span>
           <span class="answer-chip-text"></span>
@@ -345,7 +358,13 @@
           textEl.textContent = 'no answer';
           textEl.classList.add('answer-chip-empty');
         }
-        chip.querySelector('.answer-chip-points').textContent = entry.points > 0 ? `+${entry.points}` : (hasText ? 'dupe' : '—');
+        let pointsLabel = '—';
+        if (entry.points > 0) pointsLabel = `+${entry.points}`;
+        else if (notFound) pointsLabel = 'not found';
+        else if (!entry.valid && hasText) pointsLabel = 'wrong letter';
+        else if (hasText) pointsLabel = 'dupe';
+        chip.querySelector('.answer-chip-points').textContent = pointsLabel;
+        if (notFound) chip.title = "Couldn't find this online — marked as doesn't exist";
         answers.appendChild(chip);
       }
       block.appendChild(answers);
