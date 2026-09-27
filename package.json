@@ -1,0 +1,18 @@
+{
+  "name": "letter-blitz",
+  "version": "1.0.0",
+  "description": "Real-time by-letter party game — fill categories with a chosen letter before the clock runs out.",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

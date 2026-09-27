@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Letter Blitz</title>
+<meta name="description" content="A live, by-letter party game for groups of friends. Everyone fills the categories with the same letter before time runs out." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%220.9em%22 font-size=%2290%22>🔤</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ===================== LANDING ===================== -->
+  <section class="view" id="view-landing">
+    <header class="hero">
+      <div class="hero-badge" aria-hidden="true">Aa</div>
+      <h1 class="hero-title">Letter Blitz</h1>
+      <p class="hero-tag">Everyone gets the same letter. Fill every category before the clock hits zero.</p>
+    </header>
+
+    <div class="card">
+      <label class="field">
+        <span class="field-label">Your name</span>
+        <input id="name-input" type="text" maxlength="20" placeholder="e.g. Jamie" autocomplete="off" />
+      </label>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab-btn is-active" id="tab-join" role="tab" aria-selected="true">Join a room</button>
+      <button class="tab-btn" id="tab-create" role="tab" aria-selected="false">Create a room</button>
+    </div>
+
+    <div class="card" id="panel-join">
+      <label class="field">
+        <span class="field-label">Room code</span>
+        <input id="code-input" type="text" maxlength="4" placeholder="ABCD" autocomplete="off" class="code-input" />
+      </label>
+      <button class="btn btn-primary" id="btn-join">Join room</button>
+    </div>
+
+    <div class="card" id="panel-create" hidden>
+      <label class="field">
+        <span class="field-label">Round length: <span id="duration-out">60</span>s</span>
+        <input id="duration-input" type="range" min="20" max="120" step="10" value="60" />
+      </label>
+      <label class="field">
+        <span class="field-label">Categories per round: <span id="catcount-out">6</span></span>
+        <input id="catcount-input" type="range" min="4" max="8" step="1" value="6" />
+      </label>
+      <button class="btn btn-primary" id="btn-create">Create room</button>
+    </div>
+
+    <p class="error" id="landing-error" hidden></p>
+  </section>
+
+  <!-- ===================== LOBBY ===================== -->
+  <section class="view" id="view-lobby" hidden>
+    <header class="topbar">
+      <div class="room-code" id="lobby-code">----</div>
+      <button class="icon-btn" id="btn-leave-lobby" title="Leave room">Leave</button>
+    </header>
+
+    <p class="lobby-hint">Share this code &mdash; everyone joins from their own phone.</p>
+
+    <ul class="player-list" id="lobby-players"></ul>
+
+    <div class="lobby-actions">
+      <button class="btn btn-primary" id="btn-start" hidden>Start game</button>
+      <p class="waiting-note" id="lobby-wait-note">Waiting for the host to start&hellip;</p>
+    </div>
+  </section>
+
+  <!-- ===================== PLAYING ===================== -->
+  <section class="view" id="view-playing" hidden>
+    <header class="topbar">
+      <div class="room-code small" id="playing-code">----</div>
+      <div class="timer" id="timer-text">1:00</div>
+    </header>
+
+    <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+
+    <div class="letter-hero">
+      <div class="letter-hero-label">Your letter</div>
+      <div class="letter-hero-letter" id="round-letter">L</div>
+    </div>
+
+    <div class="progress-row" id="progress-row"></div>
+
+    <form class="category-list" id="category-list"></form>
+  </section>
+
+  <!-- ===================== REVEAL ===================== -->
+  <section class="view" id="view-reveal" hidden>
+    <header class="topbar">
+      <div class="room-code small" id="reveal-code">----</div>
+      <button class="icon-btn" id="btn-leave-reveal" title="Leave room">Leave</button>
+    </header>
+
+    <div class="reveal-banner" id="reveal-banner"></div>
+
+    <div class="reveal-categories" id="reveal-categories"></div>
+
+    <div class="leaderboard" id="leaderboard">
+      <h2 class="leaderboard-title">Total scores</h2>
+      <ul class="leaderboard-list" id="leaderboard-list"></ul>
+    </div>
+
+    <div class="letter-picker" id="letter-picker" hidden>
+      <p class="letter-picker-title">You won the round &mdash; pick the next letter</p>
+      <div class="letter-grid" id="letter-grid"></div>
+    </div>
+    <p class="waiting-note" id="reveal-wait-note" hidden></p>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
