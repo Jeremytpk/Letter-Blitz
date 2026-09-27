@@ -1,68 +1,53 @@
 // ---------------------------------------------------------------------------
 // Category check
 //
-// Uses Wikidata to confirm an answer is the right *kind* of thing — "Ghana"
-// is a country, not a fruit; "Liam" is a male given name; Beyoncé's
-// occupation is singer. Each category is a SPARQL rule; an answer passes when
-// one of its Wikidata matches satisfies the rule.
+// Uses Wikidata to confirm an answer is a real thing of the right *kind* —
+// "Ghana" is a country, not a fruit; "Liam" is a male given name; Beyoncé's
+// occupation is singer. Answers may be in French or English.
+//
+// 1. Search Wikidata for items named like the answer (French + English).
+// 2. Fetch those items' types in one quick query.
+// 3. Compare against the precomputed lists in category-data.mjs
+//    (see category-spec.mjs and scripts/build-categories.mjs).
 //
 // For each answer: { exists, fits } — each true, false, or null when it
 // couldn't be checked in time (the player gets the benefit of the doubt).
 // ---------------------------------------------------------------------------
 
+import { CATEGORY_SPEC } from './category-spec.mjs';
+import categoryData from './category-data.mjs';
+
 const USER_AGENT = 'LetterBlitz/1.0 (https://github.com/Jeremytpk/Letter-Blitz)';
-const LANGS = ((typeof process !== 'undefined' && process.env.WIKI_LANGS) || 'en,fr')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
+const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
+const SPARQL_URL = 'https://query.wikidata.org/sparql';
+// Search language; its fallback chain includes English, so French and English
+// names are both matched with one request.
+const SEARCH_LANGUAGE = (typeof process !== 'undefined' && process.env.SEARCH_LANGUAGE) || 'fr';
+const LABEL_LANGS = 'fr|en';
 const REQUEST_TIMEOUT_MS = 6000;
+const MAX_CANDIDATES = 15; // best-ranked name matches checked per answer
 // Categories where the answer may be part of a longer name ("Corolla" -> "Toyota Corolla").
 const PARTIAL_MATCH = new Set(['car']);
 const SEARCH_CONCURRENCY = 8;
-const QUERY_CONCURRENCY = 5; // the Wikidata query service allows 5 at once per IP
+const FACTS_BATCH = 300;
 const CACHE_MAX = 5000;
 const cache = new Map(); // `${catId}|${simplified}` -> { exists, fits }, kept while the function is warm
 
-// Walk the path starting from the answer's item (fast), not from the class.
-const FORWARD = 'hint:Prior hint:gearing "forward" .';
-// "is a (kind of) X": instance of / subclass of, through the subclass tree.
-const isA = (...classes) =>
-  classes
-    .map((q) => `{ ?item wdt:P31/wdt:P279* wd:${q} . ${FORWARD} } UNION { ?item wdt:P279+ wd:${q} . ${FORWARD} }`)
-    .join(' UNION ');
-// A person whose occupation is (a kind of) X.
-const worksAs = (...occupations) =>
-  occupations.map((q) => `{ ?item wdt:P106/wdt:P279* wd:${q} . ${FORWARD} }`).join(' UNION ');
-
-export const CATEGORY_RULES = {
-  country: isA('Q6256', 'Q3624078'), // country, sovereign state
-  // Current capital of a country (former capitals like Lagos don't count).
-  capital: `?c p:P36 ?st . ?st ps:P36 ?item . FILTER NOT EXISTS { ?st pq:P582 ?end } ${isA('Q6256', 'Q3624078').replace(/\?item/g, '?c')}`,
-  city: isA('Q486972', 'Q515'), // human settlement, city
-  man: isA('Q12308941', 'Q3409032'), // male given name, unisex given name
-  woman: isA('Q11879590', 'Q3409032'), // female given name, unisex given name
-  singer: `${worksAs('Q177220', 'Q639669')} UNION ${isA('Q215380')}`, // singer, musician, band
-  car: `${isA('Q1420', 'Q3231690', 'Q786820', 'Q59773381')} UNION { ?item wdt:P452 wd:Q190117 . }`,
-  actor: worksAs('Q33999', 'Q245068'), // actor, comedian
-  fruit: isA('Q1364', 'Q3314483'), // fruit, edible fruit
-  animal: `{ ?item wdt:P171* wd:Q729 . } UNION ${isA('Q729', 'Q16521')}`,
-  food: isA('Q2095', 'Q746549', 'Q25403900'), // food, dish, food ingredient
-  vegetable: isA('Q11004'),
-  athlete: `${worksAs('Q2066131')} UNION { ?item wdt:P641 ?sport ; wdt:P31 wd:Q5 . }`,
-  movie_tv: isA('Q11424', 'Q5398426', 'Q15416', 'Q1261214'), // film, TV series, TV programme, TV show
-  brand: isA('Q431289', 'Q167270', 'Q4830453', 'Q783794'), // brand, trademark, business, company
-  job: isA('Q28640', 'Q12737077'), // occupation, profession
-  sport: isA('Q349', 'Q31629'), // sport, type of sport
-};
+const toSet = (nums) => new Set((nums || []).map((n) => `Q${n}`));
+const CLASS_SETS = Object.fromEntries(Object.entries(categoryData.classes).map(([k, v]) => [k, toSet(v)]));
+const OCCUPATION_SETS = Object.fromEntries(Object.entries(categoryData.occupations).map(([k, v]) => [k, toSet(v)]));
+const CAPITALS = toSet(categoryData.capitals);
+const FACT_PROPS = ['P31', 'P279', 'P106', ...new Set(Object.values(CATEGORY_SPEC).flatMap((s) => Object.keys(s.claims || {})))];
 
 let deadline = Infinity; // set per checkCategories() call
 
-async function getJSON(url) {
+async function request(url, init = {}) {
   for (let attempt = 0; ; attempt++) {
     const left = deadline - Date.now();
     if (left < 200) throw new Error('out of time');
     const res = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+      ...init,
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json', ...init.headers },
       signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, left)),
     });
     if (res.ok) return res.json();
@@ -76,6 +61,14 @@ async function getJSON(url) {
   }
 }
 
+function sparql(query) {
+  return request(SPARQL_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/sparql-results+json' },
+    body: new URLSearchParams({ query }),
+  });
+}
+
 function simplify(text) {
   return String(text || '')
     .normalize('NFD')
@@ -86,92 +79,114 @@ function simplify(text) {
     .trim();
 }
 
-const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
+// Does a Wikidata label/alias correspond to what the player typed?
+// Exact match, or (for PARTIAL_MATCH categories) the answer as whole words inside it.
+// French labels often list both genders ("plombier ou plombière", "acteur/actrice"),
+// so each form is tried on its own.
+function labelMatches(label, answer, partial) {
+  if (!label || !answer) return false;
+  return [label, ...String(label).split(/\s+ou\s+|\s*[\/,]\s*/)].some((form) => {
+    const l = simplify(form);
+    if (!l) return false;
+    if (l === answer) return true;
+    return partial && ` ${l} `.includes(` ${answer} `);
+  });
+}
 
 // Wikidata items whose name matches what the player typed.
 async function candidates(text, partial) {
   const answer = simplify(text);
   const ids = new Set();
-  // Label/alias search, one language at a time until something matches.
-  for (const lang of LANGS) {
-    const data = await getJSON(
-      `${WIKIDATA_API}?action=wbsearchentities&format=json&type=item&limit=20&language=${lang}&search=${encodeURIComponent(text)}`
-    );
-    for (const e of data.search || []) {
-      const names = [e.label, e.match && e.match.text, ...(e.aliases || [])];
-      if (names.some((n) => labelMatches(n, answer, false))) ids.add(e.id);
-    }
-    if (ids.size) break;
+  // One label/alias search covers both languages: Wikidata's French search
+  // falls back to English, so "Pomme" and "Apple" both reach the fruit.
+  const data = await request(
+    `${WIKIDATA_API}?action=wbsearchentities&format=json&type=item&limit=50&language=${SEARCH_LANGUAGE}&search=${encodeURIComponent(text)}`
+  );
+  for (const e of data.search || []) {
+    const names = [e.label, e.match && e.match.text, ...(e.aliases || [])];
+    if (names.some((n) => labelMatches(n, answer, false))) ids.add(e.id);
+    if (ids.size >= MAX_CANDIDATES) break;
   }
-  // Longer names containing the answer ("Corolla" -> "Toyota Corolla").
-  if (partial) {
-    const data = await getJSON(
+  // Longer names containing the answer ("Corolla" -> "Toyota Corolla"),
+  // only when nothing matched exactly.
+  if (partial && !ids.size) {
+    const found = await request(
       `${WIKIDATA_API}?action=query&format=json&list=search&srlimit=15&srnamespace=0&srsearch=${encodeURIComponent(text)}`
     );
-    const found = ((data.query && data.query.search) || []).map((e) => e.title).filter((id) => /^Q\d+$/.test(id));
-    const labels = await fetchLabels(found);
-    for (const id of found) {
-      if ((labels.get(id) || []).some((l) => labelMatches(l, answer, true))) ids.add(id);
+    const qids = ((found.query && found.query.search) || []).map((e) => e.title).filter((id) => /^Q\d+$/.test(id));
+    if (qids.length) {
+      const labels = await request(
+        `${WIKIDATA_API}?action=wbgetentities&format=json&props=labels|aliases&languages=${LABEL_LANGS}&ids=${qids.join('|')}`
+      );
+      for (const [id, e] of Object.entries(labels.entities || {})) {
+        const names = [
+          ...Object.values(e.labels || {}).map((l) => l.value),
+          ...Object.values(e.aliases || {}).flat().map((a) => a.value),
+        ];
+        if (names.some((n) => labelMatches(n, answer, true))) ids.add(id);
+        if (ids.size >= MAX_CANDIDATES) break;
+      }
     }
   }
   return [...ids];
 }
 
-// Does a Wikidata label/alias correspond to what the player typed?
-// Exact match, or (for PARTIAL_MATCH categories) the answer as whole words inside it.
-function labelMatches(label, answer, partial) {
-  const l = simplify(label);
-  if (!l || !answer) return false;
-  if (l === answer) return true;
-  return partial && ` ${l} `.includes(` ${answer} `);
-}
-
-// Labels and aliases (in LANGS) for many items, 50 per request.
-async function fetchLabels(ids) {
-  const labels = new Map();
+// Types, occupations and other facts for many items: Map id -> { P31: Set, ... }
+async function fetchFacts(ids) {
+  const facts = new Map(ids.map((id) => [id, {}]));
   const batches = [];
-  for (let i = 0; i < ids.length; i += 50) batches.push(ids.slice(i, i + 50));
-  await pool(
-    batches.map((batch) => async () => {
-      const data = await getJSON(
-        `https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=labels|aliases&languages=${LANGS.join('|')}&ids=${batch.join('|')}`
-      );
-      for (const [id, e] of Object.entries(data.entities || {})) {
-        const all = [
-          ...Object.values(e.labels || {}).map((l) => l.value),
-          ...Object.values(e.aliases || {}).flat().map((a) => a.value),
-        ];
-        labels.set(id, all);
+  for (let i = 0; i < ids.length; i += FACTS_BATCH) batches.push(ids.slice(i, i + FACTS_BATCH));
+  await Promise.all(
+    batches.map(async (batch) => {
+      const data = await sparql(`SELECT ?item ?p ?v WHERE {
+        VALUES ?item { ${batch.map((id) => `wd:${id}`).join(' ')} }
+        VALUES ?p { ${FACT_PROPS.map((p) => `wdt:${p}`).join(' ')} }
+        ?item ?p ?v .
+      }`);
+      for (const b of data.results.bindings) {
+        const id = b.item.value.split('/').pop();
+        const prop = b.p.value.split('/').pop();
+        const f = facts.get(id);
+        if (!f[prop]) f[prop] = new Set();
+        f[prop].add(b.v.value.split('/').pop());
       }
-    }),
-    SEARCH_CONCURRENCY
+    })
   );
-  return labels;
+  return facts;
 }
 
-// Which of these items satisfy the category's rule.
-async function itemsFitting(catId, ids) {
+// Living things descending from a taxon (e.g. animals) — the tree of life is
+// too big to precompute, so this one walks it live.
+async function taxaWithin(ids, taxon) {
   if (!ids.length) return new Set();
-  const query = `
-    SELECT DISTINCT ?item WHERE {
-      VALUES ?item { ${ids.map((id) => `wd:${id}`).join(' ')} }
-      ${CATEGORY_RULES[catId]}
-    }`;
-  const data = await getJSON(`https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`);
+  const data = await sparql(`SELECT DISTINCT ?item WHERE {
+    VALUES ?item { ${ids.map((id) => `wd:${id}`).join(' ')} }
+    ?item wdt:P171* wd:${taxon} . hint:Prior hint:gearing "forward" .
+  }`);
   return new Set(data.results.bindings.map((b) => b.item.value.split('/').pop()));
 }
 
+function fits(catId, id, f, taxa) {
+  const spec = CATEGORY_SPEC[catId];
+  const any = (prop, set) => [...(f[prop] || [])].some((v) => set.has(v));
+  if (spec.capitals && CAPITALS.has(id)) return true;
+  const classes = CLASS_SETS[catId];
+  if (classes && (classes.has(id) || any('P31', classes) || any('P279', classes))) return true;
+  const occupations = OCCUPATION_SETS[catId];
+  if (occupations && any('P106', occupations)) return true;
+  for (const [prop, values] of Object.entries(spec.claims || {})) {
+    if (any(prop, new Set(values))) return true;
+  }
+  if (spec.taxonOf && taxa.has(id)) return true;
+  return false;
+}
+
 async function pool(tasks, limit) {
-  const results = [];
   let next = 0;
   async function worker() {
-    while (next < tasks.length) {
-      const i = next++;
-      results[i] = await tasks[i]();
-    }
+    while (next < tasks.length) await tasks[next++]();
   }
   await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
-  return results;
 }
 
 /**
@@ -189,12 +204,12 @@ export async function checkCategories(answers, { timeLimitMs = 7000 } = {}) {
     if (out.has(key) || !a.text.trim()) continue;
     const cached = cache.get(`${a.catId}|${simplify(a.text)}`);
     if (cached) out.set(key, cached);
-    else if (!CATEGORY_RULES[a.catId]) out.set(key, UNKNOWN);
     else {
       out.set(key, UNKNOWN);
-      todo.push(a);
+      if (CATEGORY_SPEC[a.catId]) todo.push(a);
     }
   }
+  if (!todo.length) return out;
 
   // 1. Find the Wikidata items each answer could mean.
   const idsByKey = new Map();
@@ -209,33 +224,31 @@ export async function checkCategories(answers, { timeLimitMs = 7000 } = {}) {
     SEARCH_CONCURRENCY
   );
 
-  const byCat = new Map(); // catId -> [{ a, key, ids }]
+  // 2. Look up what those items are (plus the tree of life for animals).
+  const idsFor = (a) => idsByKey.get(`${a.catId}|${a.text}`) || [];
+  const allIds = [...new Set(todo.flatMap(idsFor))];
+  const taxonRoots = [...new Set(todo.map((a) => CATEGORY_SPEC[a.catId].taxonOf).filter(Boolean))];
+  let facts = null;
+  const taxa = new Set();
+  const [factsResult, ...taxaResults] = await Promise.allSettled([
+    fetchFacts(allIds),
+    ...taxonRoots.map((root) =>
+      taxaWithin([...new Set(todo.filter((a) => CATEGORY_SPEC[a.catId].taxonOf === root).flatMap(idsFor))], root)
+    ),
+  ]);
+  if (factsResult.status === 'fulfilled') facts = factsResult.value;
+  else console.warn('Wikidata facts unavailable:', factsResult.reason.message);
+  for (const r of taxaResults) if (r.status === 'fulfilled') for (const id of r.value) taxa.add(id);
+
+  // 3. Judge each answer.
   for (const a of todo) {
     const key = `${a.catId}|${a.text}`;
     const ids = idsByKey.get(key);
     if (!ids) continue; // search failed: stays unknown
     if (!ids.length) remember(a, key, { exists: false, fits: false }, out);
-    else {
-      if (!byCat.has(a.catId)) byCat.set(a.catId, []);
-      byCat.get(a.catId).push({ a, key, ids });
-    }
+    else if (!facts) out.set(key, { exists: true, fits: null });
+    else remember(a, key, { exists: true, fits: ids.some((id) => fits(a.catId, id, facts.get(id) || {}, taxa)) }, out);
   }
-
-  // 2. One rule query per category.
-  await pool(
-    [...byCat].map(([catId, items]) => async () => {
-      try {
-        const fitting = await itemsFitting(catId, [...new Set(items.flatMap((i) => i.ids))]);
-        for (const { a, key, ids } of items) {
-          remember(a, key, { exists: true, fits: ids.some((id) => fitting.has(id)) }, out);
-        }
-      } catch (err) {
-        console.warn(`Category check failed for ${catId}:`, err.message);
-        for (const { key } of items) out.set(key, { exists: true, fits: null });
-      }
-    }),
-    QUERY_CONCURRENCY
-  );
   return out;
 }
 

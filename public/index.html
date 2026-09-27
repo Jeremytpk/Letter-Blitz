@@ -105,8 +105,25 @@
 
     <div class="reveal-categories" id="reveal-categories"></div>
 
+    <div class="sticky-action">
+      <button class="btn btn-primary" id="btn-show-scores">See scores &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ===================== SCORES ===================== -->
+  <section class="view" id="view-scores" hidden>
+    <header class="topbar">
+      <div class="room-code small" id="scores-code">----</div>
+      <button class="icon-btn" id="btn-leave-scores" title="Leave room">Leave</button>
+    </header>
+
+    <div class="scores-hero">
+      <div class="scores-hero-label" id="scores-round">Round 1</div>
+      <div class="scores-hero-winner" id="scores-winner"></div>
+    </div>
+
     <div class="leaderboard" id="leaderboard">
-      <h2 class="leaderboard-title">Total scores</h2>
+      <h2 class="leaderboard-title">Scores</h2>
       <ul class="leaderboard-list" id="leaderboard-list"></ul>
     </div>
 
@@ -115,11 +132,27 @@
       <div class="letter-grid" id="letter-grid"></div>
     </div>
     <p class="waiting-note" id="reveal-wait-note" hidden></p>
+
+    <button class="btn btn-secondary" id="btn-show-answers">&larr; Back to answers</button>
   </section>
 
 </div>
 
 <div class="toast" id="toast" hidden></div>
+
+<div class="modal-backdrop" id="leave-modal" hidden>
+  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="leave-title" aria-describedby="leave-desc">
+    <h2 class="modal-title" id="leave-title">Leave this room?</h2>
+    <p class="modal-text" id="leave-desc">
+      This will erase all your data on this device &mdash; your username, your room and your scores.
+      You won't be able to come back to this game.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="btn-leave-cancel">Stay</button>
+      <button class="btn btn-danger" id="btn-leave-confirm">Leave &amp; erase</button>
+    </div>
+  </div>
+</div>
 
 <script src="/app.js"></script>
 </body>

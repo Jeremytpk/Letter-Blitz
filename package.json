@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "netlify dev"
+    "dev": "netlify dev",
+    "build-categories": "node scripts/build-categories.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.1"

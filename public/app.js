@@ -15,6 +15,7 @@
       lobby: document.getElementById('view-lobby'),
       playing: document.getElementById('view-playing'),
       reveal: document.getElementById('view-reveal'),
+      scores: document.getElementById('view-scores'),
     },
     nameInput: document.getElementById('name-input'),
     tabJoin: document.getElementById('tab-join'),
@@ -45,6 +46,17 @@
 
     revealCode: document.getElementById('reveal-code'),
     btnLeaveReveal: document.getElementById('btn-leave-reveal'),
+    btnShowScores: document.getElementById('btn-show-scores'),
+
+    scoresCode: document.getElementById('scores-code'),
+    scoresRound: document.getElementById('scores-round'),
+    scoresWinner: document.getElementById('scores-winner'),
+    btnLeaveScores: document.getElementById('btn-leave-scores'),
+    btnShowAnswers: document.getElementById('btn-show-answers'),
+
+    leaveModal: document.getElementById('leave-modal'),
+    btnLeaveCancel: document.getElementById('btn-leave-cancel'),
+    btnLeaveConfirm: document.getElementById('btn-leave-confirm'),
     revealBanner: document.getElementById('reveal-banner'),
     revealCategories: document.getElementById('reveal-categories'),
     leaderboardList: document.getElementById('leaderboard-list'),
@@ -65,6 +77,9 @@
   let answerTimer = null;
   let answersDirty = false;
   let finalSentRound = 0;
+  // After a round: 'answers' first, then the separate 'scores' screen.
+  let revealScreen = 'answers';
+  let revealRound = 0;
   const answerInputs = new Map(); // catId -> input element
 
   function serverNow() {
@@ -252,6 +267,8 @@
     }
   }
 
+  // Back to the start screen because the room is gone. The player's name is
+  // kept; only a deliberate "Leave" erases their saved data.
   function resetToLanding(message) {
     clearTimeout(pollTimer);
     clearTimeout(answerTimer);
@@ -260,16 +277,43 @@
     localStorage.removeItem(LS_CODE);
     currentState = null;
     renderedRound = 0;
+    revealRound = 0;
     showView('landing');
     if (message) showError(message);
   }
 
-  function leaveRoom() {
-    api('leave').catch(() => {});
-    resetToLanding();
+  function askToLeave() {
+    els.leaveModal.hidden = false;
+    els.btnLeaveCancel.focus();
   }
 
-  els.btnLeaveLobby.addEventListener('click', leaveRoom);
+  function closeLeaveModal() {
+    els.leaveModal.hidden = true;
+  }
+
+  // Leave for good: remove the player from the room and erase everything
+  // saved on this device (name, room, player id).
+  function leaveRoom() {
+    closeLeaveModal();
+    api('leave').catch(() => {});
+    for (const key of [LS_NAME, LS_CODE, LS_PLAYER_ID]) localStorage.removeItem(key);
+    myPlayerId = null;
+    els.nameInput.value = '';
+    els.codeInput.value = '';
+    resetToLanding();
+    showToast('You left the room. Your data was erased.');
+  }
+
+  els.btnLeaveCancel.addEventListener('click', closeLeaveModal);
+  els.btnLeaveConfirm.addEventListener('click', leaveRoom);
+  els.leaveModal.addEventListener('click', (e) => {
+    if (e.target === els.leaveModal) closeLeaveModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.leaveModal.hidden) closeLeaveModal();
+  });
+
+  els.btnLeaveLobby.addEventListener('click', askToLeave);
   els.btnStart.addEventListener('click', () => {
     els.btnStart.disabled = true;
     api('start').catch((err) => {
@@ -277,7 +321,18 @@
       showToast(err.message);
     });
   });
-  els.btnLeaveReveal.addEventListener('click', leaveRoom);
+  els.btnLeaveReveal.addEventListener('click', askToLeave);
+  els.btnLeaveScores.addEventListener('click', askToLeave);
+  els.btnShowScores.addEventListener('click', () => {
+    revealScreen = 'scores';
+    if (currentState) render(currentState);
+    window.scrollTo(0, 0);
+  });
+  els.btnShowAnswers.addEventListener('click', () => {
+    revealScreen = 'answers';
+    if (currentState) render(currentState);
+    window.scrollTo(0, 0);
+  });
 
   // ---------------- render ----------------
 
@@ -290,8 +345,13 @@
       if (state.phase === 'checking') renderChecking();
       showView('playing');
     } else if (state.phase === 'reveal') {
+      if (revealRound !== state.round) {
+        revealRound = state.round;
+        revealScreen = 'answers';
+      }
       renderReveal(state);
-      showView('reveal');
+      renderScores(state);
+      showView(revealScreen === 'scores' ? 'scores' : 'reveal');
     }
   }
 
@@ -431,9 +491,6 @@
 
     const playersById = new Map(state.players.map((p) => [p.id, p]));
     const winner = playersById.get(reveal.winnerId);
-    // The winner picks the next letter; if they've left, the host does.
-    const winnerAway = !playersById.get(reveal.winnerId) || !playersById.get(reveal.winnerId).connected;
-    const amWinner = reveal.winnerId === myPlayerId || (winnerAway && state.hostId === myPlayerId);
     const roundScore = reveal.roundScores[myPlayerId] || 0;
 
     els.revealBanner.textContent = winner
@@ -487,18 +544,37 @@
       block.appendChild(answers);
       els.revealCategories.appendChild(block);
     }
+  }
+
+  function renderScores(state) {
+    const reveal = state.reveal;
+    if (!reveal) return;
+    els.scoresCode.textContent = state.code;
+
+    const playersById = new Map(state.players.map((p) => [p.id, p]));
+    const winner = playersById.get(reveal.winnerId);
+    // The winner picks the next letter; if they've left, the host does.
+    const winnerAway = !winner || !winner.connected;
+    const amWinner = reveal.winnerId === myPlayerId || (winnerAway && state.hostId === myPlayerId);
+
+    els.scoresRound.textContent = `Round ${state.round} · letter ${reveal.letter}`;
+    els.scoresWinner.textContent = winner
+      ? `🏆 ${winner.id === myPlayerId ? 'You' : winner.name} won with ${reveal.roundScores[winner.id]} pts`
+      : 'Round over';
 
     els.leaderboardList.innerHTML = '';
     const ranked = [...state.players].sort((a, b) => b.totalScore - a.totalScore);
     ranked.forEach((p, i) => {
       const li = document.createElement('li');
-      li.className = 'player-row';
+      li.className = 'player-row' + (p.id === myPlayerId ? ' is-me' : '');
       li.innerHTML = `
-        <span class="player-avatar">${i === 0 ? '🥇' : initials(p.name)}</span>
+        <span class="player-avatar">${['🥇', '🥈', '🥉'][i] || initials(p.name)}</span>
         <span class="player-name"></span>
+        <span class="round-points"></span>
         <span class="player-score"></span>
       `;
-      li.querySelector('.player-name').textContent = p.name;
+      li.querySelector('.player-name').textContent = p.name + (p.id === myPlayerId ? ' (you)' : '');
+      li.querySelector('.round-points').textContent = `+${reveal.roundScores[p.id] || 0}`;
       li.querySelector('.player-score').textContent = `${p.totalScore} pts`;
       els.leaderboardList.appendChild(li);
     });
@@ -530,10 +606,15 @@
 
   setTab('join');
 
-  // Rejoin the room after a refresh.
-  if (myRoomCode && myPlayerId) {
+  // Saved on this device: name, room and player id. Rejoin automatically
+  // after a refresh or when the phone comes back online.
+  function rejoin() {
     api('join', { code: myRoomCode })
       .then(schedulePoll)
-      .catch(() => resetToLanding());
+      .catch((err) => {
+        if (err.fatal) resetToLanding('That room has ended.');
+        else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
+      });
   }
+  if (myRoomCode && myPlayerId) rejoin();
 })();

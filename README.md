@@ -39,25 +39,29 @@ Open the URL it prints (usually `http://localhost:8888`).
 4. When time's up, every player's answers are revealed to the whole group at
    once, scored automatically (unique valid answer = 10 pts, an answer two or
    more players share = 0 pts for all of them, blank or wrong-letter = 0).
-   Before scoring, every answer is checked online against Wikidata (English
-   and French names). A made-up name or word is marked **not found**; a real
+   Before scoring, every answer is checked online against Wikidata &mdash;
+   answers can be typed in French or English ("Pomme" or "Apple"). A made-up name or word is marked **not found**; a real
    thing in the wrong category (e.g. "Ghana" as a Fruit) is marked **wrong
    category**. Both score 0.
-5. The round's top scorer picks the next letter. The moment they pick it, the
+5. After the answers, a separate **Scores** screen shows the round points and
+   totals; the round's top scorer picks the next letter there. The moment they pick it, the
    next round starts for everyone at the same time.
 6. Total scores carry across rounds &mdash; play as many rounds as you like.
 
 ## Notes
 
-- Each category has a rule in `netlify/lib/category.mjs` (`CATEGORY_RULES`),
-  e.g. Fruit = "is a kind of fruit", Singer = "a person whose occupation is
-  singer or musician", Capital City = "the current capital of a country".
-  Names must match exactly; car models may be partial ("Corolla").
-- The check has 7 seconds per round. If Wikidata is slow or unreachable,
-  unchecked answers get the benefit of the doubt.
-- Set the `WIKI_LANGS` environment variable on Netlify (default `en,fr`) to
-  change which languages' names are accepted.
+- Each category's rule lives in `netlify/lib/category-spec.mjs` (e.g. Fruit =
+  "is a kind of fruit", Singer = "a person whose occupation is singer or
+  musician", Capital City = "the current capital of a country"). Wikidata's
+  class trees are precomputed into `category-data.mjs` so checks take ~1–2 s;
+  after changing the spec, run `npm run build-categories`.
+- Names must match exactly (accents and capitals don't matter); car models
+  may be partial ("Corolla"). If Wikidata is slow or unreachable, unchecked
+  answers get the benefit of the doubt.
+- Each phone remembers its player name and room, so a refresh or lost
+  connection rejoins automatically. Tapping **Leave** (after a confirmation)
+  removes the player and erases that saved data.
 - Rounds start with a 3-2-1 countdown so every phone starts at the same moment.
-- Categories live in `netlify/lib/game.mjs` (`CATEGORY_BANK`). The nine core
+- The category list lives in `netlify/lib/game.mjs` (`CATEGORY_BANK`). The nine core
   ones are used first; extras are mixed in when a room asks for more than nine.
 - Rooms expire after 12 hours.
