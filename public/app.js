@@ -18,6 +18,7 @@
       playing: document.getElementById('view-playing'),
       reveal: document.getElementById('view-reveal'),
       scores: document.getElementById('view-scores'),
+      closed: document.getElementById('view-closed'),
     },
     nameInput: document.getElementById('name-input'),
     avatarGrid: document.getElementById('avatar-grid'),
@@ -62,6 +63,11 @@
     scoresWinner: document.getElementById('scores-winner'),
     btnLeaveScores: document.getElementById('btn-leave-scores'),
     btnShowAnswers: document.getElementById('btn-show-answers'),
+
+    closedTitle: document.getElementById('closed-title'),
+    closedText: document.getElementById('closed-text'),
+    btnClosedCreate: document.getElementById('btn-closed-create'),
+    btnClosedJoin: document.getElementById('btn-closed-join'),
 
     playBar: document.getElementById('play-bar'),
     playersPill: document.getElementById('players-pill'),
@@ -139,6 +145,7 @@
     if (!res.ok) {
       const code = data.errorCode;
       const err = new Error(code ? t(`err_${code}`) : t('somethingWrong'));
+      err.code = code;
       err.fatal = code === 'room_not_found' || code === 'not_in_room' || code === 'room_closed';
       throw err;
     }
@@ -195,6 +202,10 @@
     try {
       await api('poll');
     } catch (err) {
+      if (err.code === 'room_closed') {
+        showRoomClosed('closed', myRoomCode);
+        return;
+      }
       if (err.fatal) {
         resetToLanding(err.message);
         return;
@@ -327,12 +338,50 @@
       els.inviteBanner.hidden = true;
       schedulePoll();
     } catch (err) {
-      showError(err.message);
+      const code = payload.code || invitedTo;
+      if (err.code === 'room_closed') showRoomClosed('closed', code);
+      else if (err.code === 'room_not_found' && invitedTo && code === invitedTo) showRoomClosed('gone', code);
+      else showError(err.message);
     } finally {
       els.btnJoin.disabled = false;
       els.btnCreate.disabled = false;
     }
   }
+
+  // ---------------- room closed / not found ----------------
+
+  let closedInfo = null; // { kind: 'closed' | 'gone', code }
+
+  function renderRoomClosed() {
+    if (!closedInfo) return;
+    const { kind, code } = closedInfo;
+    els.closedTitle.textContent = t(kind === 'closed' ? 'roomClosedTitle' : 'roomGoneTitle');
+    els.closedText.innerHTML = t(kind === 'closed' ? 'roomClosedText' : 'roomGoneText', { code: '<strong></strong>' });
+    els.closedText.querySelector('strong').textContent = code || '';
+  }
+
+  // A page of its own for a room that was closed (or no longer exists).
+  // The player's name and avatar are kept.
+  function showRoomClosed(kind, code) {
+    resetToLanding();
+    closedInfo = { kind, code };
+    if (invitedTo) history.replaceState(null, '', location.pathname);
+    els.inviteBanner.hidden = true;
+    els.codeInput.value = '';
+    renderRoomClosed();
+    showView('closed');
+    window.scrollTo(0, 0);
+  }
+
+  function leaveClosedPage(tab) {
+    closedInfo = null;
+    setTab(tab);
+    showView('landing');
+    window.scrollTo(0, 0);
+    if (tab === 'join') els.codeInput.focus();
+  }
+  els.btnClosedCreate.addEventListener('click', () => leaveClosedPage('create'));
+  els.btnClosedJoin.addEventListener('click', () => leaveClosedPage('join'));
 
   // Back to the start screen because the room is gone. The player's name is
   // kept; only a deliberate "Leave" erases their saved data.
@@ -934,6 +983,14 @@
     els.codeInput.value = invitedTo;
     setTab('join');
     renderInviteBanner();
+    // Check the invite right away so a closed room shows its page before
+    // the player fills anything in.
+    if (myRoomCode !== invitedTo) {
+      api('peek', { code: invitedTo }).catch((err) => {
+        if (err.code === 'room_closed') showRoomClosed('closed', invitedTo);
+        else if (err.code === 'room_not_found') showRoomClosed('gone', invitedTo);
+      });
+    }
   }
 
   els.btnInvite.addEventListener('click', async () => {
@@ -973,6 +1030,7 @@
     if (!els.landingError.hidden) els.landingError.hidden = true;
     renderAvatarGrid();
     if (!els.inviteBanner.hidden) renderInviteBanner();
+    renderRoomClosed();
   });
   window.i18n.applyStatic();
 
@@ -982,7 +1040,9 @@
     api('join', { code: myRoomCode, avatar: myAvatar })
       .then(schedulePoll)
       .catch((err) => {
-        if (err.fatal) resetToLanding(t('roomEnded'));
+        if (err.code === 'room_closed') showRoomClosed('closed', myRoomCode);
+        else if (err.code === 'room_not_found') showRoomClosed('gone', myRoomCode);
+        else if (err.fatal) resetToLanding(t('roomEnded'));
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }

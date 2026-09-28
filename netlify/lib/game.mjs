@@ -418,6 +418,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room, playerId };
     },
 
+    // Check a room exists and is open without joining it (used for invite links).
+    async peek({ code }) {
+      if (!(await load(code))) throw new GameError('room_not_found', 'Room not found. Check the code.');
+      return { room: null, playerId: null };
+    },
+
     // The room head decides whether everyone can see the player list during rounds.
     async setShowPlayers({ code, playerId, value }) {
       const room = await mutate(code, (r) => {

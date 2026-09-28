@@ -58,6 +58,14 @@
       <path d="M16 18.5 V13 M16 18.5 L19.6 20.6" stroke="${DARK}" stroke-width="2" stroke-linecap="round"/>
       <circle cx="16" cy="18.5" r="1.4" fill="${DARK}"/>
       ${shine(9.5, 12.5, 1.3)}`,
+    closed: `
+      <path d="M10 14 V10.5 Q10 4 16 4 Q22 4 22 10.5 V14" stroke="#adb5bd" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+      <rect x="5.5" y="13" width="21" height="16.5" rx="4.5" fill="#ffd166"/>
+      <rect x="5.5" y="24.5" width="21" height="5" rx="2.5" fill="#e9b949"/>
+      <circle cx="12.3" cy="19.6" r="1.3" fill="${DARK}"/><circle cx="19.7" cy="19.6" r="1.3" fill="${DARK}"/>
+      <path d="M13.2 24.6 Q16 22.4 18.8 24.6" stroke="${DARK}" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <circle cx="10" cy="22.4" r="1.5" fill="#ff6b81" opacity=".45"/><circle cx="22" cy="22.4" r="1.5" fill="#ff6b81" opacity=".45"/>
+      ${shine(9.2, 16.3, 1.2)}`,
     'arrow-right': `<path d="M6 16 H25 M18 9 L25 16 L18 23" stroke="currentColor" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
     'arrow-left': `<path d="M26 16 H7 M14 9 L7 16 L14 23" stroke="currentColor" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
   };
