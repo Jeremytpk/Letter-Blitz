@@ -3,6 +3,7 @@
 (() => {
   const STRINGS = {
     en: {
+      poweredBy: 'Powered by',
       tagline: 'Everyone gets the same letter. Fill every category before the clock hits zero.',
       yourName: 'Your name',
       namePlaceholder: 'e.g. Jamie',
@@ -128,6 +129,7 @@
     },
 
     fr: {
+      poweredBy: 'Propulsé par',
       tagline: 'Tout le monde a la même lettre. Remplissez chaque catégorie avant la fin du chrono.',
       yourName: 'Votre nom',
       namePlaceholder: 'ex. Jamie',

@@ -679,6 +679,16 @@ input[type="range"] {
   z-index: 10;
 }
 
+.credit {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+.credit strong { color: var(--text); font-weight: 800; }
+
 /* ---------- modal ---------- */
 
 .modal-backdrop {
