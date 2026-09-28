@@ -132,21 +132,26 @@
         <path d="M46 57 L54 57 L50 65 Z" fill="#fb8500"/>`,
     },
     {
-      id: 'bamboo',
-      name: { en: 'Bamboo', fr: 'Bambou' },
-      kind: { en: 'Panda', fr: 'Panda' },
+      id: 'byte',
+      name: { en: 'Byte', fr: 'Byte' },
+      kind: { en: 'IT · Laptop', fr: 'Informatique · Ordinateur' },
       svg: `${bg('#ff99c8')}
-        ${shoulders('#23232f')}
-        <circle cx="27" cy="29" r="10" fill="#23232f"/><circle cx="73" cy="29" r="10" fill="#23232f"/>
-        <ellipse cx="50" cy="53" rx="28" ry="26" fill="#fff"/>
-        <ellipse cx="38" cy="51" rx="7" ry="9.5" transform="rotate(-25 38 51)" fill="#23232f"/>
-        <ellipse cx="62" cy="51" rx="7" ry="9.5" transform="rotate(25 62 51)" fill="#23232f"/>
-        <circle cx="39" cy="50" r="2.8" fill="#fff"/><circle cx="61" cy="50" r="2.8" fill="#fff"/>
-        <circle cx="39.5" cy="50.5" r="1.5" fill="#23232f"/><circle cx="60.5" cy="50.5" r="1.5" fill="#23232f"/>
-        <ellipse cx="50" cy="61" rx="4.5" ry="3.2" fill="#23232f"/>
-        <path d="M46 66 Q50 70 54 66" stroke="#23232f" stroke-width="2" fill="none" stroke-linecap="round"/>
-        ${blush(33, 62)}${blush(67, 62)}
-        <path d="M66 22 Q76 12 86 16 Q78 24 66 22 Z" fill="#52b788"/><path d="M68 21 Q76 17 84 17" stroke="#2d6a4f" stroke-width="1" fill="none"/>`,
+        <rect x="8" y="10" width="26" height="15" rx="6" fill="#fff"/>
+        <path d="M18 25 L16 30 L22 25 Z" fill="#fff"/>
+        <text x="21" y="21.2" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, monospace" font-weight="700" font-size="9" fill="#7209b7">&lt;/&gt;</text>
+        <circle cx="84" cy="18" r="2" fill="#fff" opacity=".7"/><circle cx="90" cy="28" r="1.4" fill="#fff" opacity=".7"/>
+        <rect x="20" y="28" width="60" height="42" rx="6" fill="#2b2d42"/>
+        <rect x="24.5" y="32.5" width="51" height="33" rx="3" fill="#0b132b"/>
+        <circle cx="50" cy="30.3" r="1" fill="#6c757d"/>
+        <path d="M29 37 H40 M29 41 H36 M43 37 H50" stroke="#06d6a0" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>
+        <path d="M58 60 H70 M62 56 H70" stroke="#4cc9f0" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>
+        <rect x="40" y="44" width="5" height="7" rx="2.5" fill="#80ffdb"/><rect x="55" y="44" width="5" height="7" rx="2.5" fill="#80ffdb"/>
+        <path d="M44 56 Q50 61 56 56" stroke="#80ffdb" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M12 72 H88 L94 81 Q95 84 92 84 H8 Q5 84 6 81 Z" fill="#ced4da"/>
+        <path d="M12 72 H88" stroke="#adb5bd" stroke-width="2"/>
+        <rect x="41" y="75.5" width="18" height="4.5" rx="2" fill="#adb5bd"/>
+        <rect x="10" y="84" width="80" height="3" rx="1.5" fill="#adb5bd"/>
+        <path d="M27 36 L33 33" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".25"/>`,
     },
     {
       id: 'felis',
