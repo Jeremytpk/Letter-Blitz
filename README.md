@@ -83,3 +83,12 @@ Open the URL it prints (usually `http://localhost:8888`).
 - The category list lives in `netlify/lib/game.mjs` (`CATEGORY_BANK`). The nine core
   ones are used first; extras are mixed in when a room asks for more than nine.
 - Rooms expire after 12 hours.
+- **Admin dashboard** (visits, players, rooms, live rooms and players, time
+  played) is switched on by four environment variables set in Netlify —
+  `ADMIN_NAME`, `ADMIN_AVATAR`, `ADMIN_PASSWORD`, `ADMIN_PASSCODE`. Their
+  values are never stored in this repository (a local copy lives in `.env`,
+  which git ignores). See `netlify/lib/admin.mjs`.
+- Rooms are deleted about 12 hours after creation by an hourly scheduled
+  function (`netlify/functions/cleanup.mjs`).
+- About, Privacy and Terms pages: `public/about.html`, `privacy.html`,
+  `terms.html` (English and French).

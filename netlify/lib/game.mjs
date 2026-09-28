@@ -9,6 +9,8 @@
 // ---------------------------------------------------------------------------
 
 import { checkCategories } from './category.mjs';
+import { createStats } from './stats.mjs';
+import { createAdmin, isAdminEntry } from './admin.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -46,6 +48,24 @@ const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 const CHECK_TIME_LIMIT_MS = 7000; // Netlify stops a function after 10s
 
 // `code` lets each player's page show the message in their own language.
+// Delete rooms past their 12-hour lifetime (names, answers and all).
+// Runs hourly (netlify/functions/cleanup.mjs) and whenever the dashboard loads.
+export async function deleteExpiredRooms(store, now = Date.now()) {
+  const { blobs } = await store.list({ prefix: 'room-' });
+  let deleted = 0;
+  for (let i = 0; i < blobs.length; i += 20) {
+    await Promise.all(
+      blobs.slice(i, i + 20).map(async (b) => {
+        const r = await store.get(b.key, { type: 'json' });
+        if (r && now - r.createdAt <= ROOM_TTL_MS) return;
+        await store.delete(b.key);
+        deleted += 1;
+      })
+    );
+  }
+  return deleted;
+}
+
 export class GameError extends Error {
   constructor(code, message) {
     super(message);
@@ -105,11 +125,10 @@ function clampCategoryCount(n) {
   return Math.min(12, Math.max(4, Math.round(c)));
 }
 
-// Must match the ids in public/avatars.js.
-const AVATAR_IDS = new Set(['zuri', 'Tpk', 'zog', 'nova', 'bolt', 'kitsu', 'hoot', 'bamboo', 'felis', 'draco', 'inky', 'yeti']);
-
+// Avatar ids come from public/avatars.js; any simple id is accepted so
+// renaming an avatar there needs no change here (unknown ids show initials).
 function cleanAvatar(avatar) {
-  return AVATAR_IDS.has(avatar) ? avatar : null;
+  return /^[A-Za-z][A-Za-z0-9_-]{1,23}$/.test(String(avatar || '')) ? avatar : null;
 }
 
 function cleanName(name) {
@@ -235,7 +254,15 @@ function publicState(room, playerId, now) {
   };
 }
 
-export function createGame(store, { now = () => Date.now(), verify = checkCategories } = {}) {
+export function createGame(store, { now = () => Date.now(), verify = checkCategories, adminCfg = null } = {}) {
+  const stats = createStats(store, now);
+  const admin = createAdmin(store, adminCfg, now);
+
+  // The owner's secret name + avatar opens the admin sign-in instead of a room.
+  function checkAdminEntry(name, avatar) {
+    if (isAdminEntry(adminCfg, name, avatar)) throw new GameError('admin_login', 'Admin sign-in');
+  }
+
   async function load(code) {
     const res = await store.getWithMetadata(roomKey(code), { type: 'json', consistency: 'strong' });
     if (!res || !res.data) return null;
@@ -291,14 +318,22 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       console.warn('Answer check failed:', err.message);
     }
 
-    return mutate(code, (r) => {
+    let scored = false;
+    const result = await mutate(code, (r) => {
       if (r.round !== round || r.phase !== 'checking') return false;
       scoreRound(r, found);
+      scored = true;
     });
+    if (scored) {
+      const players = Object.keys(result.players).length;
+      await stats.bump({ roundsPlayed: 1, roomMs: result.duration, playerMs: result.duration * players });
+    }
+    return result;
   }
 
   const actions = {
     async create({ name, avatar, playerId, settings = {} }) {
+      checkAdminEntry(name, avatar);
       const n = cleanName(name);
       const id = playerId || randomId(12);
       const t = now();
@@ -322,12 +357,16 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           createdAt: t,
         };
         const write = await store.setJSON(roomKey(code), room, { onlyIfNew: true });
-        if (write.modified) return { room, playerId: id };
+        if (write.modified) {
+          await stats.bump({ roomsCreated: 1 });
+          return { room, playerId: id };
+        }
       }
       throw new GameError('create_failed', 'Could not create a room — please try again.');
     },
 
     async join({ code, name, avatar, playerId }) {
+      if (!(playerId && name === undefined)) checkAdminEntry(name, avatar);
       let id = playerId;
       const room = await mutate(code, (r) => {
         const t = now();
@@ -389,6 +428,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
 
     async start({ code, playerId }) {
+      let started = false;
       const room = await mutate(code, (r) => {
         const t = now();
         touch(r, playerId, t);
@@ -397,7 +437,13 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         const online = Object.values(r.players).filter((p) => isOnline(p, t));
         if (online.length < MIN_PLAYERS_TO_START) throw new GameError('need_players', 'Need at least 2 players to start.');
         startRound(r, randomLetter(), t);
+        started = true;
       });
+      if (started) {
+        // Count the game, and each player the first time they ever play.
+        const firsts = await Promise.all(Object.keys(room.players).map((id) => stats.firstTime('player', id)));
+        await stats.bump({ gamesStarted: 1, uniquePlayers: firsts.filter(Boolean).length });
+      }
       return { room, playerId };
     },
 
@@ -416,6 +462,28 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         startRound(r, L, t);
       });
       return { room, playerId };
+    },
+
+    // One per browser session; visitorId is a random id kept on the device.
+    async visit({ visitorId }) {
+      const first = await stats.firstTime('visitor', visitorId);
+      await stats.bump({ visits: 1, uniqueVisitors: first ? 1 : 0 });
+      return { room: null, playerId: null };
+    },
+
+    async adminLogin({ password, passcode }, meta) {
+      try {
+        const token = await admin.login(String(password || ''), String(passcode || ''), meta.ip);
+        return { room: null, playerId: null, extra: { adminToken: token } };
+      } catch (err) {
+        if (err.code === 'admin_locked') throw new GameError('admin_locked', 'Too many attempts. Try again later.');
+        throw new GameError('admin_denied', 'Wrong password or passcode.');
+      }
+    },
+
+    async adminStats({ token }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      return { room: null, playerId: null, extra: { dashboard: await dashboard() } };
     },
 
     // Check a room exists and is open without joining it (used for invite links).
@@ -479,12 +547,53 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
   };
 
-  return async function handle(action, body) {
+  // Everything the admin dashboard shows. Also deletes rooms past their
+  // 12-hour lifetime, so old names and answers don't linger.
+  async function dashboard() {
+    const t = now();
+    await deleteExpiredRooms(store, t).catch((err) => console.warn('Cleanup failed:', err.message));
+    const { blobs } = await store.list({ prefix: 'room-' });
+    const rooms = [];
+    let playersOnline = 0;
+    let openRooms = 0;
+    for (let i = 0; i < blobs.length; i += 20) {
+      const batch = await Promise.all(
+        blobs.slice(i, i + 20).map((b) => store.get(b.key, { type: 'json', consistency: 'strong' }).then((r) => [b.key, r]))
+      );
+      for (const [, r] of batch) {
+        if (!r || t - r.createdAt > ROOM_TTL_MS || r.closed) continue;
+        openRooms += 1;
+        const players = Object.values(r.players).sort((a, b) => a.joinedAt - b.joinedAt);
+        const online = players.filter((p) => isOnline(p, t));
+        if (!online.length) continue;
+        playersOnline += online.length;
+        const hostId = effectiveHostId(r, t);
+        rooms.push({
+          code: r.code,
+          phase: r.phase,
+          round: r.round,
+          totalRounds: r.totalRounds || DEFAULT_ROUNDS,
+          createdAt: r.createdAt,
+          players: players.map((p) => ({
+            name: p.name,
+            avatar: p.avatar || null,
+            online: isOnline(p, t),
+            host: p.id === hostId,
+            score: p.totalScore,
+          })),
+        });
+      }
+    }
+    rooms.sort((a, b) => b.createdAt - a.createdAt);
+    return { generatedAt: t, stats: await stats.get(), roomsOnline: rooms.length, openRooms, playersOnline, rooms };
+  }
+
+  return async function handle(action, body, meta = {}) {
     const fn = actions[action];
     if (!fn) throw new GameError('unknown_action', 'Unknown action.');
     const payload = { ...body, code: String(body.code || '').trim().toUpperCase() };
-    const { room, playerId } = await fn(payload);
+    const { room, playerId, extra } = await fn(payload, meta);
     const t = now();
-    return { now: t, playerId, state: room ? publicState(room, playerId, t) : null };
+    return { now: t, playerId, state: room ? publicState(room, playerId, t) : null, ...extra };
   };
 }

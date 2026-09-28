@@ -2,3 +2,7 @@ node_modules/
 .DS_Store
 npm-debug.log*
 .netlify/
+
+# Local secrets (admin sign-in) — never commit
+.env
+.env.*

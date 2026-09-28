@@ -19,6 +19,7 @@
       reveal: document.getElementById('view-reveal'),
       scores: document.getElementById('view-scores'),
       closed: document.getElementById('view-closed'),
+      admin: document.getElementById('view-admin'),
     },
     nameInput: document.getElementById('name-input'),
     avatarGrid: document.getElementById('avatar-grid'),
@@ -63,6 +64,21 @@
     scoresWinner: document.getElementById('scores-winner'),
     btnLeaveScores: document.getElementById('btn-leave-scores'),
     btnShowAnswers: document.getElementById('btn-show-answers'),
+
+    adminModal: document.getElementById('admin-modal'),
+    adminForm: document.getElementById('admin-form'),
+    adminPassword: document.getElementById('admin-password'),
+    adminPasscode: document.getElementById('admin-passcode'),
+    adminError: document.getElementById('admin-error'),
+    btnAdminCancel: document.getElementById('btn-admin-cancel'),
+    btnAdminSubmit: document.getElementById('btn-admin-submit'),
+    btnAdminRefresh: document.getElementById('btn-admin-refresh'),
+    btnAdminLogout: document.getElementById('btn-admin-logout'),
+    adminUpdated: document.getElementById('admin-updated'),
+    adminTiles: document.getElementById('admin-tiles'),
+    adminRooms: document.getElementById('admin-rooms'),
+    adminRoomsCount: document.getElementById('admin-rooms-count'),
+    adminDays: document.getElementById('admin-days'),
 
     closedTitle: document.getElementById('closed-title'),
     closedText: document.getElementById('closed-text'),
@@ -339,12 +355,178 @@
       schedulePoll();
     } catch (err) {
       const code = payload.code || invitedTo;
-      if (err.code === 'room_closed') showRoomClosed('closed', code);
+      if (err.code === 'admin_login') openAdminLogin();
+      else if (err.code === 'room_closed') showRoomClosed('closed', code);
       else if (err.code === 'room_not_found' && invitedTo && code === invitedTo) showRoomClosed('gone', code);
       else showError(err.message);
     } finally {
       els.btnJoin.disabled = false;
       els.btnCreate.disabled = false;
+    }
+  }
+
+  // ---------------- admin ----------------
+
+  const SS_ADMIN = 'lb_admin_token';
+  let adminTimer = null;
+  let lastDashboard = null;
+  const ssGet = (k) => { try { return sessionStorage.getItem(k); } catch { return null; } };
+  const ssSet = (k, v) => { try { v === null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch {} };
+
+  function openAdminLogin() {
+    els.adminError.hidden = true;
+    els.adminPassword.value = '';
+    els.adminPasscode.value = '';
+    els.adminModal.hidden = false;
+    els.adminPassword.focus();
+  }
+  function closeAdminLogin() {
+    els.adminModal.hidden = true;
+  }
+  els.btnAdminCancel.addEventListener('click', closeAdminLogin);
+  els.adminForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.btnAdminSubmit.disabled = true;
+    try {
+      const data = await api('adminLogin', { password: els.adminPassword.value, passcode: els.adminPasscode.value });
+      ssSet(SS_ADMIN, data.adminToken);
+      closeAdminLogin();
+      els.nameInput.value = localStorage.getItem(LS_NAME) || '';
+      showAdmin();
+    } catch (err) {
+      els.adminError.textContent = err.message;
+      els.adminError.hidden = false;
+      els.adminPasscode.value = '';
+    } finally {
+      els.btnAdminSubmit.disabled = false;
+    }
+  });
+
+  function showAdmin() {
+    showView('admin');
+    window.scrollTo(0, 0);
+    loadDashboard();
+  }
+
+  async function loadDashboard() {
+    clearTimeout(adminTimer);
+    try {
+      const data = await api('adminStats', { token: ssGet(SS_ADMIN) });
+      lastDashboard = data.dashboard;
+      renderDashboard();
+    } catch (err) {
+      if (err.code === 'admin_expired') {
+        adminSignOut(err.message);
+        return;
+      }
+      showToast(err.message);
+    }
+    if (!els.views.admin.hidden) adminTimer = setTimeout(loadDashboard, 10000);
+  }
+
+  function adminSignOut(message) {
+    clearTimeout(adminTimer);
+    ssSet(SS_ADMIN, null);
+    lastDashboard = null;
+    showView('landing');
+    if (message) showError(message);
+  }
+  els.btnAdminRefresh.addEventListener('click', loadDashboard);
+  els.btnAdminLogout.addEventListener('click', () => adminSignOut());
+
+  const fmt = (n) => Number(n || 0).toLocaleString(window.i18n.lang === 'fr' ? 'fr-FR' : 'en-US');
+  // "12 h 5 min" (or "40 s" for very short totals).
+  const hours = (ms) => {
+    const totalMin = Math.floor((ms || 0) / 60000);
+    if (totalMin < 1) return `${Math.round((ms || 0) / 1000)} s`;
+    const h = Math.floor(totalMin / 60);
+    return h ? `${fmt(h)} h ${totalMin % 60} min` : `${totalMin} min`;
+  };
+
+  function renderDashboard() {
+    const d = lastDashboard;
+    if (!d) return;
+    const st = d.stats;
+    const today = st.days[new Date(d.generatedAt).toISOString().slice(0, 10)] || {};
+    els.adminUpdated.textContent = t('updatedAt', {
+      time: new Date(d.generatedAt).toLocaleTimeString(window.i18n.lang === 'fr' ? 'fr-FR' : 'en-US'),
+    });
+
+    const tiles = [
+      { label: 'statVisits', value: fmt(st.visits), sub: t('today', { n: fmt(today.visits) }) },
+      { label: 'statUniqueVisitors', value: fmt(st.uniqueVisitors), sub: t('today', { n: fmt(today.uniqueVisitors) }) },
+      { label: 'statPlayed', value: fmt(st.uniquePlayers), sub: t('today', { n: fmt(today.uniquePlayers) }) },
+      { label: 'statRoomsCreated', value: fmt(st.roomsCreated), sub: t('today', { n: fmt(today.roomsCreated) }) },
+      { label: 'statGames', value: fmt(st.gamesStarted), sub: t('today', { n: fmt(today.gamesStarted) }) },
+      { label: 'statRounds', value: fmt(st.roundsPlayed), sub: t('today', { n: fmt(today.roundsPlayed) }) },
+      { label: 'statHours', value: hours(st.playerMs), sub: t('hoursSub', { room: hours(st.roomMs) }) },
+      { label: 'statRoomsOnline', value: fmt(d.roomsOnline), live: true },
+      { label: 'statPlayersOnline', value: fmt(d.playersOnline), live: true },
+      { label: 'statOpenRooms', value: fmt(d.openRooms), sub: t('openSub') },
+    ];
+    els.adminTiles.innerHTML = '';
+    for (const tile of tiles) {
+      const div = document.createElement('div');
+      div.className = 'stat-tile' + (tile.live ? ' is-live' : '');
+      div.innerHTML = '<span class="stat-label"></span><span class="stat-value"></span><span class="stat-sub"></span>';
+      div.querySelector('.stat-label').textContent = t(tile.label);
+      div.querySelector('.stat-value').textContent = tile.value;
+      div.querySelector('.stat-sub').textContent = tile.sub || '';
+      els.adminTiles.appendChild(div);
+    }
+
+    els.adminRoomsCount.textContent = fmt(d.rooms.length);
+    els.adminRooms.innerHTML = '';
+    if (!d.rooms.length) {
+      els.adminRooms.innerHTML = '<p class="admin-empty"></p>';
+      els.adminRooms.firstChild.textContent = t('noLiveRooms');
+    }
+    for (const room of d.rooms) {
+      const card = document.createElement('div');
+      card.className = 'admin-room';
+      card.innerHTML = '<div class="admin-room-head"><span class="admin-room-code"></span><span class="admin-room-meta"></span></div><ul class="admin-players"></ul>';
+      card.querySelector('.admin-room-code').textContent = room.code;
+      card.querySelector('.admin-room-meta').textContent = t('roomMeta', {
+        phase: t(`phase_${room.phase}`),
+        round: room.round,
+        total: room.totalRounds,
+      });
+      const list = card.querySelector('.admin-players');
+      for (const p of room.players) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="status-dot${p.online ? ' is-on' : ''}"></span>${avatarHTML(p.avatar, p.name).replace(
+          'class="avatar',
+          'class="avatar avatar-sm'
+        )}<span class="ap-name"></span>${p.host ? `<span class="ap-crown">${icon('crown')}</span>` : ''}<span class="ap-score"></span>`;
+        li.querySelector('.ap-name').textContent = p.name + (p.online ? '' : ` (${t('offline')})`);
+        li.querySelector('.ap-score').textContent = t('pts', { points: p.score });
+        list.appendChild(li);
+      }
+      els.adminRooms.appendChild(card);
+    }
+
+    // Last 14 days, newest first.
+    const rows = [];
+    for (let i = 0; i < 14; i++) {
+      const day = new Date(d.generatedAt - i * 86400000).toISOString().slice(0, 10);
+      rows.push([day, st.days[day] || {}]);
+    }
+    const cols = ['statVisits', 'statUniqueVisitors', 'statRoomsCreated', 'statGames', 'statRounds', 'statHours'];
+    const keys = ['visits', 'uniqueVisitors', 'roomsCreated', 'gamesStarted', 'roundsPlayed', 'playerMs'];
+    els.adminDays.innerHTML = '<thead><tr><th></th>' + cols.map(() => '<th></th>').join('') + '</tr></thead><tbody></tbody>';
+    const ths = els.adminDays.querySelectorAll('th');
+    ths[0].textContent = t('day');
+    cols.forEach((c, i) => (ths[i + 1].textContent = t(c)));
+    const tbody = els.adminDays.querySelector('tbody');
+    for (const [day, v] of rows) {
+      const tr = document.createElement('tr');
+      const cells = [day, ...keys.map((k) => (k === 'playerMs' ? hours(v[k] || 0) : fmt(v[k])))];
+      for (const c of cells) {
+        const td = document.createElement('td');
+        td.textContent = c;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
     }
   }
 
@@ -1031,6 +1213,7 @@
     renderAvatarGrid();
     if (!els.inviteBanner.hidden) renderInviteBanner();
     renderRoomClosed();
+    renderDashboard();
   });
   window.i18n.applyStatic();
 
@@ -1046,6 +1229,24 @@
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }
-  // An invite to a different room wins over the saved one.
-  if (myRoomCode && myPlayerId && (!invitedTo || invitedTo === myRoomCode)) rejoin();
+  // Count one visit per browser session. The visitor id is random and only
+  // used to tell new visitors from returning ones.
+  try {
+    if (!sessionStorage.getItem('lb_visited')) {
+      sessionStorage.setItem('lb_visited', '1');
+      let visitorId = localStorage.getItem('lb_visitor');
+      if (!visitorId) {
+        visitorId = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('lb_visitor', visitorId);
+      }
+      api('visit', { visitorId }).catch(() => {});
+    }
+  } catch {}
+
+  if (ssGet(SS_ADMIN)) {
+    showAdmin(); // still signed in as admin in this tab
+  } else if (myRoomCode && myPlayerId && (!invitedTo || invitedTo === myRoomCode)) {
+    // An invite to a different room wins over the saved one.
+    rejoin();
+  }
 })();

@@ -89,7 +89,39 @@
 
     <p class="error" id="landing-error" hidden></p>
 
+    <nav class="site-links" aria-label="Site">
+      <a href="/about.html" data-i18n="about">About</a><span aria-hidden="true">·</span>
+      <a href="/privacy.html" data-i18n="privacy">Privacy</a><span aria-hidden="true">·</span>
+      <a href="/terms.html" data-i18n="terms">Terms</a>
+    </nav>
     <footer class="credit"><span data-i18n="poweredBy">Powered by</span> <strong>Jerttech</strong></footer>
+  </section>
+
+  <!-- ===================== ADMIN DASHBOARD ===================== -->
+  <section class="view" id="view-admin" hidden>
+    <header class="topbar">
+      <h1 class="admin-title" data-i18n="dashboard">Dashboard</h1>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+        <button class="icon-btn" id="btn-admin-refresh" data-i18n="refresh">Refresh</button>
+        <button class="icon-btn" id="btn-admin-logout" data-i18n="signOut">Sign out</button>
+      </div>
+    </header>
+    <p class="admin-updated" id="admin-updated"></p>
+
+    <div class="stat-grid" id="admin-tiles"></div>
+
+    <section class="admin-section">
+      <h2 class="admin-h2"><span data-i18n="liveRooms">Rooms online now</span> <span class="admin-count" id="admin-rooms-count">0</span></h2>
+      <div class="admin-rooms" id="admin-rooms"></div>
+    </section>
+
+    <section class="admin-section">
+      <h2 class="admin-h2" data-i18n="last14Days">Last 14 days</h2>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-days"></table>
+      </div>
+    </section>
   </section>
 
   <!-- ===================== ROOM CLOSED ===================== -->
@@ -225,6 +257,25 @@
 </div>
 
 <div class="toast" id="toast" hidden></div>
+
+<div class="modal-backdrop" id="admin-modal" hidden>
+  <form class="modal" id="admin-form" role="dialog" aria-modal="true" aria-labelledby="admin-login-title" autocomplete="off">
+    <h2 class="modal-title" id="admin-login-title" data-i18n="adminSignIn">Admin sign-in</h2>
+    <label class="field">
+      <span class="field-label" data-i18n="password">Password</span>
+      <input id="admin-password" type="password" autocomplete="current-password" required />
+    </label>
+    <label class="field">
+      <span class="field-label" data-i18n="passcode">Passcode</span>
+      <input id="admin-passcode" type="password" inputmode="numeric" autocomplete="one-time-code" required />
+    </label>
+    <p class="error" id="admin-error" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="btn-admin-cancel" data-i18n="cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="btn-admin-submit" data-i18n="signIn">Sign in</button>
+    </div>
+  </form>
+</div>
 
 <div class="modal-backdrop" id="leave-modal" hidden>
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="leave-title" aria-describedby="leave-desc">
