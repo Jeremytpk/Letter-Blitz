@@ -5,6 +5,8 @@
     en: {
       poweredBy: 'Powered by',
       chooseAvatar: 'Choose your avatar',
+      swipeForMore: 'Swipe for more avatars →',
+      avatarPage: 'Avatars page {n}',
       viewAll: 'View all ({n})',
       allFeedback: 'All feedback',
       allMessages: 'All messages',
@@ -245,6 +247,8 @@
     fr: {
       poweredBy: 'Propulsé par',
       chooseAvatar: 'Choisissez votre avatar',
+      swipeForMore: 'Glissez pour plus d’avatars →',
+      avatarPage: 'Page d’avatars {n}',
       viewAll: 'Tout voir ({n})',
       allFeedback: 'Tous les avis',
       allMessages: 'Tous les messages',

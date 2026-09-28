@@ -348,11 +348,54 @@ input[type="range"] {
 
 .rank { width: 28px; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dim); flex-shrink: 0; display: flex; justify-content: center; }
 
-.avatar-grid {
+.avatar-pager {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  gap: 16px;
+  padding: 4px 2px;
+  margin: -4px -2px;
+}
+.avatar-pager::-webkit-scrollbar { display: none; }
+.avatar-page {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
+.avatar-nav { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.avatar-arrow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.avatar-arrow .icon { width: 16px; height: 16px; }
+.avatar-arrow:disabled { opacity: 0.3; cursor: default; }
+.avatar-dots { display: flex; gap: 6px; }
+.avatar-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 999px;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  transition: width 0.2s, background 0.2s;
+}
+.avatar-dots button.is-active { width: 22px; background: var(--accent); }
+.avatar-hint { margin: -2px 0 0; text-align: center; font-size: 12px; font-weight: 700; color: var(--text-dim); }
+.avatar-hint.is-seen { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .avatar-pager { scroll-behavior: auto; } }
 .avatar-option {
   display: flex;
   flex-direction: column;

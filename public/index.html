@@ -47,7 +47,14 @@
       </label>
       <div class="field">
         <span class="field-label" id="avatar-label" data-i18n="chooseAvatar">Choose your avatar</span>
-        <div class="avatar-grid" id="avatar-grid" role="radiogroup" aria-labelledby="avatar-label"></div>
+        <!-- Pages of 12 avatars; swipe sideways (or use the arrows) for more -->
+        <div class="avatar-pager" id="avatar-grid" role="radiogroup" aria-labelledby="avatar-label"></div>
+        <div class="avatar-nav">
+          <button type="button" class="avatar-arrow" id="avatar-prev" aria-label="Previous avatars"><span data-icon="arrow-left"></span></button>
+          <div class="avatar-dots" id="avatar-dots"></div>
+          <button type="button" class="avatar-arrow" id="avatar-next" aria-label="More avatars"><span data-icon="arrow-right"></span></button>
+        </div>
+        <p class="avatar-hint" id="avatar-hint" data-i18n="swipeForMore">Swipe for more avatars</p>
       </div>
     </div>
 

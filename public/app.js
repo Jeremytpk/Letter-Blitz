@@ -24,6 +24,10 @@
     },
     nameInput: document.getElementById('name-input'),
     avatarGrid: document.getElementById('avatar-grid'),
+    avatarDots: document.getElementById('avatar-dots'),
+    avatarPrev: document.getElementById('avatar-prev'),
+    avatarNext: document.getElementById('avatar-next'),
+    avatarHint: document.getElementById('avatar-hint'),
     inviteBanner: document.getElementById('invite-banner'),
     btnInvite: document.getElementById('btn-invite'),
     tabJoin: document.getElementById('tab-join'),
@@ -300,6 +304,8 @@
     for (const [key, el] of Object.entries(els.views)) {
       el.hidden = key !== name;
     }
+    // The avatar pages can only be positioned once the start screen is visible.
+    if (name === 'landing') requestAnimationFrame(showSelectedAvatarPage);
   }
 
   // ---------------- landing ----------------
@@ -1449,27 +1455,90 @@
 
   // ---------------- avatars ----------------
 
+  const AVATARS_PER_PAGE = 12;
+
+  // Avatars in swipeable pages of 12 (4 × 3), with dots and arrows.
   function renderAvatarGrid() {
-    els.avatarGrid.innerHTML = '';
-    for (const a of window.AVATARS) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'avatar-option';
-      btn.setAttribute('role', 'radio');
-      btn.setAttribute('aria-checked', String(a.id === myAvatar));
-      btn.setAttribute('aria-label', `${a.name[window.i18n.lang]} — ${a.kind[window.i18n.lang]}`);
-      btn.title = a.kind[window.i18n.lang];
-      btn.innerHTML = `${avatarHTML(a.id)}<span></span>`;
-      btn.querySelector('span:last-child').textContent = a.name[window.i18n.lang];
-      btn.addEventListener('click', () => {
-        myAvatar = a.id;
-        localStorage.setItem(LS_AVATAR, a.id);
-        for (const b of els.avatarGrid.children) b.setAttribute('aria-checked', String(b === btn));
-        if (!els.landingError.hidden) els.landingError.hidden = true;
-      });
-      els.avatarGrid.appendChild(btn);
+    const pager = els.avatarGrid;
+    const keepScroll = pager.scrollLeft;
+    pager.innerHTML = '';
+    const lang = window.i18n.lang;
+    let selectedPage = 0;
+    for (let start = 0; start < window.AVATARS.length; start += AVATARS_PER_PAGE) {
+      const page = document.createElement('div');
+      page.className = 'avatar-page';
+      for (const a of window.AVATARS.slice(start, start + AVATARS_PER_PAGE)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'avatar-option';
+        btn.setAttribute('role', 'radio');
+        btn.setAttribute('aria-checked', String(a.id === myAvatar));
+        btn.setAttribute('aria-label', `${a.name[lang]} — ${a.kind[lang]}`);
+        btn.title = a.kind[lang];
+        btn.innerHTML = `${avatarHTML(a.id)}<span></span>`;
+        btn.querySelector('span:last-child').textContent = a.name[lang];
+        btn.addEventListener('click', () => {
+          myAvatar = a.id;
+          localStorage.setItem(LS_AVATAR, a.id);
+          for (const b of pager.querySelectorAll('.avatar-option')) b.setAttribute('aria-checked', String(b === btn));
+          if (!els.landingError.hidden) els.landingError.hidden = true;
+        });
+        if (a.id === myAvatar) selectedPage = start / AVATARS_PER_PAGE;
+        page.appendChild(btn);
+      }
+      pager.appendChild(page);
     }
+
+    const pages = pager.children.length;
+    els.avatarDots.innerHTML = '';
+    for (let i = 0; i < pages; i++) {
+      const dot = document.createElement('button');
+      dot.type = 'button';
+      dot.setAttribute('aria-label', t('avatarPage', { n: i + 1 }));
+      dot.addEventListener('click', () => goToAvatarPage(i));
+      els.avatarDots.appendChild(dot);
+    }
+    // Keep the page the player was on, or open on the page with their avatar.
+    pager.style.scrollBehavior = 'auto';
+    pager.scrollLeft = keepScroll || selectedPage * pager.clientWidth;
+    pager.style.scrollBehavior = '';
+    if (selectedPage > 0) seenMoreAvatars();
+    updateAvatarNav();
   }
+
+  function showSelectedAvatarPage() {
+    const i = window.AVATARS.findIndex((a) => a.id === myAvatar);
+    if (i >= AVATARS_PER_PAGE && els.avatarGrid.scrollLeft === 0) {
+      els.avatarGrid.style.scrollBehavior = 'auto';
+      els.avatarGrid.scrollLeft = Math.floor(i / AVATARS_PER_PAGE) * els.avatarGrid.clientWidth;
+      els.avatarGrid.style.scrollBehavior = '';
+    }
+    updateAvatarNav();
+  }
+
+  function avatarPageIndex() {
+    const pager = els.avatarGrid;
+    return pager.clientWidth ? Math.round(pager.scrollLeft / pager.clientWidth) : 0;
+  }
+  function goToAvatarPage(i) {
+    const pager = els.avatarGrid;
+    pager.scrollTo({ left: i * pager.clientWidth });
+  }
+  function seenMoreAvatars() {
+    els.avatarHint.classList.add('is-seen');
+  }
+  function updateAvatarNav() {
+    const pages = els.avatarGrid.children.length;
+    const i = avatarPageIndex();
+    [...els.avatarDots.children].forEach((d, n) => d.classList.toggle('is-active', n === i));
+    els.avatarPrev.disabled = i <= 0;
+    els.avatarNext.disabled = i >= pages - 1;
+    if (i > 0) seenMoreAvatars();
+  }
+  els.avatarGrid.addEventListener('scroll', () => requestAnimationFrame(updateAvatarNav), { passive: true });
+  els.avatarPrev.addEventListener('click', () => goToAvatarPage(avatarPageIndex() - 1));
+  els.avatarNext.addEventListener('click', () => goToAvatarPage(avatarPageIndex() + 1));
+  window.addEventListener('resize', () => goToAvatarPage(avatarPageIndex()));
   renderAvatarGrid();
 
   // ---------------- invite links ----------------

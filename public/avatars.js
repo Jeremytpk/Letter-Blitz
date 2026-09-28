@@ -213,6 +213,213 @@
         <path d="M39 61 Q50 73 61 61 Z" fill="#1b1b24"/>
         <path d="M42 61.5 L44 66 L46 62 Z M54 62 L56 66 L58 61.5 Z" fill="#fff"/>`,
     },
+    // ---- Page 2: cars, nature, places, money, careers and fun stuff ----
+    {
+      id: 'turbo',
+      name: { en: 'Turbo', fr: 'Turbo' },
+      kind: { en: 'Sports car', fr: 'Voiture de sport' },
+      svg: `${bg('#264653')}
+        <rect y="74" width="100" height="26" fill="#1d3a44"/>
+        <path d="M0 90 H100" stroke="#e9c46a" stroke-width="2.6" stroke-dasharray="9 7"/>
+        <g transform="translate(6 7) scale(.86)">
+        <path d="M2 56 H12 M5 63 H14 M1 49 H9" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+        <path d="M10 49 H24 L24 53 H13 Z" fill="#b5222f"/><path d="M18 53 V58" stroke="#b5222f" stroke-width="2.5"/>
+        <path d="M14 67 Q15 56 29 54 L40 44 Q46 39 58 39 L66 39 Q75 40 81 49 L89 53 Q95 55 95 63 L95 69 Q95 73 91 73 L18 73 Q14 73 14 67 Z" fill="#e63946"/>
+        <path d="M42 47 Q47 43 56 43 L64 43 Q70 44 75 51 L39 51 Z" fill="#a8dadc"/>
+        <path d="M58 43 V51" stroke="#e63946" stroke-width="2.2"/>
+        <path d="M20 61 H91" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <ellipse cx="88" cy="58" rx="4" ry="3.2" fill="#fff"/><circle cx="89" cy="58" r="1.8" fill="#1b1b24"/>
+        <path d="M80 66 Q84 68 88 66" stroke="#1b1b24" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <circle cx="31" cy="73" r="9.5" fill="#1b1b24"/><circle cx="31" cy="73" r="4.2" fill="#adb5bd"/>
+        <circle cx="76" cy="73" r="9.5" fill="#1b1b24"/><circle cx="76" cy="73" r="4.2" fill="#adb5bd"/>
+        <ellipse cx="50" cy="56" rx="9" ry="1.6" fill="#fff" opacity=".35"/>
+        </g>`,
+    },
+    {
+      id: 'oak',
+      name: { en: 'Oak', fr: 'Chêne' },
+      kind: { en: 'Tree', fr: 'Arbre' },
+      svg: `${bg('#d8f3dc')}
+        <circle cx="16" cy="18" r="2" fill="#95d5b2"/><circle cx="86" cy="24" r="1.6" fill="#95d5b2"/>
+        <ellipse cx="50" cy="97" rx="42" ry="9" fill="#95d5b2"/>
+        <path d="M41 97 L44 64 L56 64 L59 97 Z" fill="#8d6346"/>
+        <path d="M44 72 Q40 66 34 66 M56 70 Q61 64 67 64" stroke="#8d6346" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <circle cx="50" cy="36" r="22" fill="#2d6a4f"/><circle cx="30" cy="50" r="15" fill="#2d6a4f"/>
+        <circle cx="70" cy="50" r="15" fill="#2d6a4f"/><circle cx="50" cy="56" r="15" fill="#2d6a4f"/>
+        <circle cx="43" cy="28" r="8" fill="#40916c"/><circle cx="66" cy="42" r="7" fill="#40916c"/><circle cx="28" cy="46" r="5" fill="#40916c"/>
+        <circle cx="36" cy="40" r="3" fill="#e63946"/><circle cx="61" cy="30" r="3" fill="#e63946"/><circle cx="58" cy="58" r="3" fill="#e63946"/>
+        <circle cx="46.5" cy="78" r="1.8" fill="#1b1b24"/><circle cx="53.5" cy="78" r="1.8" fill="#1b1b24"/>
+        <path d="M46 83 Q50 86 54 83" stroke="#1b1b24" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        ${blush(44, 82)}${blush(56, 82)}`,
+    },
+    {
+      id: 'bloom',
+      name: { en: 'Bloom', fr: 'Bloom' },
+      kind: { en: 'Flower', fr: 'Fleur' },
+      svg: `${bg('#cdb4db')}
+        <path d="M50 64 V100" stroke="#52b788" stroke-width="5"/>
+        <path d="M50 86 Q36 76 30 86 Q40 94 50 89 Z M50 80 Q64 70 70 79 Q60 88 50 83 Z" fill="#52b788"/>
+        ${Array.from({ length: 12 }, (_, i) => `<ellipse cx="50" cy="23" rx="6.5" ry="12.5" fill="${i % 2 ? '#ffb703' : '#ffd166'}" transform="rotate(${i * 30} 50 43)"/>`).join('')}
+        <circle cx="50" cy="43" r="14.5" fill="#6f4e37"/>
+        <circle cx="45" cy="41" r="2.3" fill="#1b1b24"/><circle cx="55" cy="41" r="2.3" fill="#1b1b24"/>
+        <circle cx="45.8" cy="40.2" r=".8" fill="#fff"/><circle cx="55.8" cy="40.2" r=".8" fill="#fff"/>
+        <path d="M44.5 47 Q50 52 55.5 47" stroke="#ffd166" stroke-width="2" fill="none" stroke-linecap="round"/>
+        ${blush(41, 46)}${blush(59, 46)}`,
+    },
+    {
+      id: 'summit',
+      name: { en: 'Summit', fr: 'Sommet' },
+      kind: { en: 'Landscape', fr: 'Paysage' },
+      svg: `${bg('#ffb4a2')}
+        <circle cx="66" cy="38" r="14" fill="#ffe8a3"/>
+        <path d="M61.5 37 Q63 35.5 64.5 37 M67.5 37 Q69 35.5 70.5 37" stroke="#e76f51" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M62 41.5 Q66 44.5 70 41.5" stroke="#e76f51" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <ellipse cx="24" cy="26" rx="10" ry="3.5" fill="#fff" opacity=".7"/><ellipse cx="84" cy="18" rx="8" ry="3" fill="#fff" opacity=".7"/>
+        <path d="M16 20 q3 -3 6 0 q3 -3 6 0 M80 30 q2.5 -2.5 5 0 q2.5 -2.5 5 0" stroke="#6d597a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M0 70 L22 46 L40 62 L58 42 L80 60 L100 46 V100 H0 Z" fill="#b5838d"/>
+        <path d="M0 82 L30 50 L52 76 L72 56 L100 84 V100 H0 Z" fill="#6d597a"/>
+        <path d="M30 50 L24 57 L28 56 L31 60 L34 56 L37 57 Z M72 56 L67 62 L71 61 L73 64 L76 61 L78 62 Z" fill="#fff"/>
+        <path d="M0 91 Q50 85 100 91 V100 H0 Z" fill="#4a4e69"/>
+        <path d="M22 94 H34 M60 93 H76" stroke="#ffe8a3" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>`,
+    },
+    {
+      id: 'marina',
+      name: { en: 'Marina', fr: 'Marina' },
+      kind: { en: 'Yacht', fr: 'Yacht' },
+      svg: `${bg('#48cae4')}
+        <circle cx="20" cy="20" r="8" fill="#ffe66d"/>
+        <path d="M72 22 q3 -3 6 0 q3 -3 6 0" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <path d="M52 46 V30" stroke="#6c757d" stroke-width="1.6"/><path d="M52 30 L63 33.5 L52 37 Z" fill="#e63946"/>
+        <path d="M40 55 L43 46 L61 46 L64 55 Z" fill="#fff"/>
+        <rect x="45" y="48.5" width="13" height="3.2" rx="1.6" fill="#023e8a"/>
+        <path d="M28 67 L33 54 L68 54 L75 67 Z" fill="#f1faee"/>
+        <rect x="37" y="57" width="8" height="5" rx="2" fill="#023e8a"/><rect x="49" y="57" width="8" height="5" rx="2" fill="#023e8a"/><rect x="61" y="57" width="6" height="5" rx="2" fill="#023e8a"/>
+        <path d="M12 66 L90 66 L80 79 L22 79 Z" fill="#fff"/>
+        <path d="M17 72 H85" stroke="#023e8a" stroke-width="3"/>
+        <circle cx="30" cy="76" r="1.4" fill="#023e8a"/><circle cx="38" cy="76" r="1.4" fill="#023e8a"/>
+        <path d="M0 78 Q12 74 25 78 T50 78 T75 78 T100 78 V100 H0 Z" fill="#0077b6"/>
+        <path d="M8 86 q6 -3 12 0 M40 90 q6 -3 12 0 M70 86 q6 -3 12 0" stroke="#90e0ef" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M86 80 q5 2 10 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+    },
+    {
+      id: 'cash',
+      name: { en: 'Cash', fr: 'Cash' },
+      kind: { en: 'Money', fr: 'Argent' },
+      svg: `${bg('#2d6a4f')}
+        <rect x="60" y="70" width="28" height="15" rx="2" transform="rotate(-18 74 77)" fill="#95d5b2"/>
+        <circle cx="74" cy="77" r="4" fill="#52b788"/>
+        ${[0, 1, 2, 3].map((i) => `<ellipse cx="21" cy="${88 - i * 6}" rx="12" ry="4" fill="#e9b949"/><ellipse cx="21" cy="${86.5 - i * 6}" rx="12" ry="4" fill="#ffd166"/>`).join('')}
+        <path d="M42 26 L38 15 L46 19 L50 12 L54 19 L62 15 L58 26 Z" fill="#e9c46a"/>
+        <path d="M50 29 Q33 33 30 60 Q28 87 50 88 Q72 87 70 60 Q67 33 50 29 Z" fill="#e9c46a"/>
+        <path d="M40 29 Q50 35 60 29 L58 25 Q50 29 42 25 Z" fill="#bc8a3c"/>
+        <text x="50" y="80" text-anchor="middle" font-family="Unbounded, system-ui, sans-serif" font-weight="800" font-size="17" fill="#2d6a4f">$</text>
+        ${eye(44, 54, 2.4)}${eye(56, 54, 2.4)}
+        <path d="M45 60 Q50 64 55 60" stroke="#1b1b24" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        ${blush(39, 60)}${blush(61, 60)}
+        <circle cx="38" cy="40" r="2" fill="#fff" opacity=".6"/>`,
+    },
+    {
+      id: 'doc',
+      name: { en: 'Doc', fr: 'Doc' },
+      kind: { en: 'Doctor', fr: 'Médecin' },
+      svg: `${bg('#e0fbfc')}
+        <path d="M24 80 H30 V86 H36 V92 H30 V98 H24 V92 H18 V86 H24 Z" fill="#e63946" opacity=".25"/>
+        ${shoulders('#f8f9fa')}
+        <path d="M40 77 L50 92 L60 77 Z" fill="#48cae4"/>
+        <path d="M37 80 Q35 95 46 95" stroke="#1b1b24" stroke-width="2" fill="none"/><circle cx="47" cy="95" r="3.2" fill="#adb5bd"/>
+        <rect x="43" y="66" width="14" height="13" fill="#c68b59"/>
+        <path d="M29 56 Q27 26 50 26 Q73 26 71 56 L66 64 L34 64 Z" fill="#3d2c1e"/>
+        <ellipse cx="50" cy="54" rx="18" ry="20" fill="#e0ac69"/>
+        <path d="M32 48 Q34 32 50 34 Q66 32 68 48 Q60 40 50 41 Q40 40 32 48 Z" fill="#3d2c1e"/>
+        <path d="M31 38 Q50 30 69 38" stroke="#adb5bd" stroke-width="2.2" fill="none"/>
+        <circle cx="50" cy="31" r="6" fill="#ced4da"/><circle cx="50" cy="31" r="3" fill="#fff"/>
+        ${eye(43, 54)}${eye(57, 54)}${blush(38, 61)}${blush(62, 61)}
+        <path d="M44 63 Q50 68 56 63" stroke="#8a4b2a" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+    },
+    {
+      id: 'chef',
+      name: { en: 'Chef', fr: 'Chef' },
+      kind: { en: 'Chef', fr: 'Chef cuisinier' },
+      svg: `${bg('#ffd6a5')}
+        ${shoulders('#fff')}
+        <circle cx="44" cy="88" r="1.8" fill="#adb5bd"/><circle cx="56" cy="88" r="1.8" fill="#adb5bd"/><circle cx="44" cy="96" r="1.8" fill="#adb5bd"/><circle cx="56" cy="96" r="1.8" fill="#adb5bd"/>
+        <path d="M39 77 L50 86 L61 77 Z" fill="#e63946"/>
+        <rect x="43" y="66" width="14" height="12" fill="#d9a066"/>
+        <circle cx="31" cy="55" r="4.5" fill="#e6b077"/><circle cx="69" cy="55" r="4.5" fill="#e6b077"/>
+        <ellipse cx="50" cy="55" rx="19" ry="20" fill="#f1c27d"/>
+        <circle cx="37" cy="22" r="10" fill="#fff"/><circle cx="50" cy="17" r="12" fill="#fff"/><circle cx="63" cy="22" r="10" fill="#fff"/>
+        <rect x="33" y="25" width="34" height="13" rx="3" fill="#fff"/><rect x="33" y="34" width="34" height="4" rx="2" fill="#e9ecef"/>
+        <path d="M38 50 Q42 46.5 46 50 M54 50 Q58 46.5 62 50" stroke="#1b1b24" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        ${blush(37, 57)}${blush(63, 57)}
+        <path d="M37 62 Q44 56 50 60 Q56 56 63 62 Q56 65.5 50 63.5 Q44 65.5 37 62 Z" fill="#6f4e37"/>
+        <path d="M45 67 Q50 70 55 67" stroke="#8a4b2a" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+    },
+    {
+      id: 'astro',
+      name: { en: 'Astro', fr: 'Astro' },
+      kind: { en: 'Astronaut', fr: 'Astronaute' },
+      svg: `${bg('#14213d')}
+        <circle cx="14" cy="16" r="1.4" fill="#fff"/><circle cx="30" cy="8" r="1" fill="#fff"/><circle cx="90" cy="46" r="1.2" fill="#fff"/><circle cx="8" cy="52" r="1" fill="#fff"/><circle cx="72" cy="10" r="1" fill="#fff"/>
+        <circle cx="84" cy="20" r="7" fill="#f4a261"/><ellipse cx="84" cy="20" rx="12" ry="3.5" fill="none" stroke="#ffd166" stroke-width="1.6" transform="rotate(-20 84 20)"/>
+        ${shoulders('#e9ecef')}
+        <rect x="40" y="84" width="20" height="12" rx="3" fill="#3a86ff"/>
+        <circle cx="45" cy="90" r="1.8" fill="#e63946"/><circle cx="50" cy="90" r="1.8" fill="#ffd166"/><circle cx="55" cy="90" r="1.8" fill="#06d6a0"/>
+        <rect x="19" y="44" width="7" height="14" rx="3" fill="#ced4da"/><rect x="74" y="44" width="7" height="14" rx="3" fill="#ced4da"/>
+        <circle cx="50" cy="50" r="27" fill="#f8f9fa"/>
+        <path d="M50 23 V16" stroke="#ced4da" stroke-width="2"/><circle cx="50" cy="15" r="2.6" fill="#e63946"/>
+        <ellipse cx="50" cy="52" rx="19.5" ry="16.5" fill="#1b263b"/>
+        <ellipse cx="43.5" cy="52" rx="2.6" ry="3.2" fill="#80ffdb"/><ellipse cx="56.5" cy="52" rx="2.6" ry="3.2" fill="#80ffdb"/>
+        <path d="M45 59 Q50 62.5 55 59" stroke="#80ffdb" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M36 46 Q39 39 47 38" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/>`,
+    },
+    {
+      id: 'blaze',
+      name: { en: 'Blaze', fr: 'Blaze' },
+      kind: { en: 'Firefighter', fr: 'Pompier' },
+      svg: `${bg('#9d0208')}
+        <circle cx="16" cy="24" r="1.8" fill="#ffba08" opacity=".7"/><circle cx="84" cy="30" r="1.4" fill="#ffba08" opacity=".7"/><circle cx="22" cy="14" r="1.2" fill="#ffba08" opacity=".7"/>
+        ${shoulders('#e9c46a')}
+        <path d="M16 90 H84" stroke="#f8f9fa" stroke-width="4"/><path d="M16 90 H84" stroke="#adb5bd" stroke-width="1.4"/>
+        <rect x="43" y="66" width="14" height="13" fill="#7a4a20"/>
+        <ellipse cx="50" cy="56" rx="19" ry="20" fill="#8d5524"/>
+        <ellipse cx="60" cy="63" rx="4" ry="2" fill="#1b1b24" opacity=".25"/>
+        ${eye(43, 55)}${eye(57, 55)}
+        <path d="M43 64 Q50 70 57 64" stroke="#3b1d0e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M26 46 Q26 20 50 20 Q74 20 74 46 Z" fill="#e63946"/>
+        <path d="M50 20 V44" stroke="#b5222f" stroke-width="3"/>
+        <path d="M16 47 Q50 38 84 47 Q50 52 16 47 Z" fill="#b5222f"/>
+        <path d="M44 28 H56 V36 Q50 40 44 36 Z" fill="#ffd166"/><circle cx="50" cy="32" r="1.8" fill="#e63946"/>`,
+    },
+    {
+      id: 'slice',
+      name: { en: 'Slice', fr: 'Slice' },
+      kind: { en: 'Pizza', fr: 'Pizza' },
+      svg: `${bg('#4361ee')}
+        <circle cx="14" cy="80" r="2" fill="#fff" opacity=".5"/><circle cx="86" cy="70" r="2.5" fill="#fff" opacity=".5"/>
+        <path d="M20 24 Q50 14 80 24 L53 88 Q50 93 47 88 Z" fill="#ffd166"/>
+        <path d="M22 26 Q50 17 78 26 L70 44 Q50 38 30 44 Z" fill="#f4a261" opacity=".35"/>
+        <path d="M18 21 Q50 8 82 21 Q85 29 78 30 Q50 19 22 30 Q15 29 18 21 Z" fill="#e09f3e"/>
+        <circle cx="36" cy="38" r="5.5" fill="#e63946"/><circle cx="64" cy="40" r="5.5" fill="#e63946"/><circle cx="50" cy="70" r="4.5" fill="#e63946"/>
+        <circle cx="34.5" cy="36.5" r="1.2" fill="#fff" opacity=".6"/><circle cx="62.5" cy="38.5" r="1.2" fill="#fff" opacity=".6"/>
+        <circle cx="58" cy="60" r="2.6" fill="none" stroke="#2d6a4f" stroke-width="1.6"/><circle cx="41" cy="56" r="2.2" fill="none" stroke="#2d6a4f" stroke-width="1.5"/>
+        ${eye(44.5, 48, 2.3)}${eye(55.5, 48, 2.3)}
+        <path d="M46 53 Q50 57 54 53" stroke="#1b1b24" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M60 77 Q61 84 58 88" stroke="#ffd166" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+    },
+    {
+      id: 'joy',
+      name: { en: 'Joy', fr: 'Joy' },
+      kind: { en: 'Game controller', fr: 'Manette de jeu' },
+      svg: `${bg('#f72585')}
+        <path d="M50 37 Q50 22 62 16 Q70 12 74 18" stroke="#3a0ca3" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M22 46 Q22 36 34 36 H66 Q78 36 78 46 L86 70 Q88 81 78 81 Q72 81 68 73 L64 67 H36 L32 73 Q28 81 22 81 Q12 81 14 70 Z" fill="#7209b7"/>
+        <path d="M26 51 H34 V47 H38 V51 H42 V55 H38 V59 H34 V55 H26 V51 Z" transform="translate(-3 0)" fill="#3a0ca3"/>
+        <circle cx="68" cy="47" r="3" fill="#ffd166"/><circle cx="74" cy="53" r="3" fill="#06d6a0"/><circle cx="62" cy="53" r="3" fill="#4cc9f0"/><circle cx="68" cy="59" r="3" fill="#e63946"/>
+        <ellipse cx="45.5" cy="49" rx="3" ry="3.6" fill="#fff"/><ellipse cx="54.5" cy="49" rx="3" ry="3.6" fill="#fff"/>
+        <circle cx="46" cy="49.8" r="1.7" fill="#1b1b24"/><circle cx="55" cy="49.8" r="1.7" fill="#1b1b24"/>
+        <path d="M46 57 Q50 61 54 57" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <circle cx="30" cy="42" r="1.6" fill="#fff" opacity=".6"/>`,
+    },
   ];
 
   const byId = new Map(AVATARS.map((a) => [a.id, a]));
