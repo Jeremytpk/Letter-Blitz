@@ -126,9 +126,26 @@
         <div class="topbar-actions">
           <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
           <div class="timer" id="timer-text" role="timer" aria-live="off">1:00</div>
+          <button type="button" class="players-pill" id="players-pill" aria-expanded="false" aria-controls="players-panel" hidden>
+            <span aria-hidden="true">👥</span><span id="players-count">0</span>
+          </button>
         </div>
       </header>
       <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+
+      <!-- Player list: the room head always has it and decides if everyone does -->
+      <div class="players-panel" id="players-panel" hidden>
+        <div class="players-panel-head">
+          <span class="players-panel-title" id="players-panel-title"></span>
+          <label class="switch" id="show-players-row" hidden>
+            <input type="checkbox" id="show-players-switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span data-i18n="visibleToAll">Visible to everyone</span>
+          </label>
+        </div>
+        <p class="players-panel-hint" id="players-panel-hint" hidden></p>
+        <ul class="players-panel-list" id="players-panel-list"></ul>
+      </div>
     </div>
 
     <div class="letter-hero">

@@ -64,6 +64,14 @@
     btnShowAnswers: document.getElementById('btn-show-answers'),
 
     playBar: document.getElementById('play-bar'),
+    playersPill: document.getElementById('players-pill'),
+    playersCount: document.getElementById('players-count'),
+    playersPanel: document.getElementById('players-panel'),
+    playersPanelTitle: document.getElementById('players-panel-title'),
+    playersPanelHint: document.getElementById('players-panel-hint'),
+    playersPanelList: document.getElementById('players-panel-list'),
+    showPlayersRow: document.getElementById('show-players-row'),
+    showPlayersSwitch: document.getElementById('show-players-switch'),
     barLetter: document.getElementById('bar-letter'),
 
     leaveModal: document.getElementById('leave-modal'),
@@ -141,11 +149,29 @@
     if (data.state) {
       myRoomCode = data.state.code;
       localStorage.setItem(LS_CODE, myRoomCode);
+      announceJoins(data.state);
       const prevPhase = currentState && currentState.phase;
       currentState = data.state;
       render(data.state, prevPhase);
     }
     return data;
+  }
+
+  // "Bob joined the room" for players who weren't in the last update.
+  let knownRoom = null;
+  let knownIds = null;
+  function announceJoins(state) {
+    const ids = new Set(state.players.map((p) => p.id));
+    if (knownRoom === state.code && knownIds) {
+      const newcomers = state.players.filter((p) => !knownIds.has(p.id) && p.id !== myPlayerId);
+      if (newcomers.length === 1) {
+        showToast(t('playerJoined', { name: newcomers[0].name }), newcomers[0].avatar);
+      } else if (newcomers.length > 1) {
+        showToast(t('playersJoined', { names: newcomers.map((p) => p.name).join(t('and')) }), newcomers[0].avatar);
+      }
+    }
+    knownRoom = state.code;
+    knownIds = ids;
   }
 
   function showError(message) {
@@ -200,8 +226,10 @@
     answerTimer = setTimeout(sendAnswers, 600);
   }
 
-  function showToast(message) {
-    els.toast.textContent = message;
+  // Optional avatar id shows that player's avatar next to the message.
+  function showToast(message, avatarId) {
+    els.toast.innerHTML = `${avatarId ? avatarHTML(avatarId) : ''}<span></span>`;
+    els.toast.querySelector('span:last-child').textContent = message;
     els.toast.hidden = false;
     clearTimeout(showToast._t);
     showToast._t = setTimeout(() => { els.toast.hidden = true; }, 3200);
@@ -311,6 +339,8 @@
     currentState = null;
     renderedRound = 0;
     revealRound = 0;
+    knownRoom = null;
+    closePlayersPanel();
     showView('landing');
     if (message) showError(message);
   }
@@ -511,6 +541,7 @@
       renderedRound = 0;
       startTimerLoop(state.startedAt, state.duration);
       renderProgress(state.progress);
+      renderPlayersPanel(state);
       return;
     }
 
@@ -544,7 +575,74 @@
 
     startTimerLoop(state.startedAt, state.duration);
     renderProgress(state.progress);
+    renderPlayersPanel(state);
   }
+
+  // ---------------- player list (timer bar) ----------------
+
+  function closePlayersPanel() {
+    els.playersPanel.hidden = true;
+    els.playersPill.setAttribute('aria-expanded', 'false');
+  }
+
+  // The room head always has the 👥 button; everyone else only when they turn it on.
+  function renderPlayersPanel(state) {
+    const amHost = state.hostId === myPlayerId;
+    const canSee = amHost || state.showPlayers;
+    els.playersPill.hidden = !canSee;
+    if (!canSee) {
+      closePlayersPanel();
+      return;
+    }
+    els.playersPill.classList.toggle('is-off', amHost && !state.showPlayers);
+    els.playersCount.textContent = state.players.length;
+    els.playersPill.setAttribute('aria-label', `${t('players')}: ${state.players.length}`);
+
+    els.playersPanelTitle.textContent = t('playersInRoom', { count: state.players.length });
+    els.showPlayersRow.hidden = !amHost;
+    els.showPlayersSwitch.checked = !!state.showPlayers;
+    els.playersPanelHint.hidden = !(amHost && !state.showPlayers);
+    els.playersPanelHint.textContent = t('onlyYouSee');
+
+    els.playersPanelList.innerHTML = '';
+    for (const p of state.players) {
+      const li = document.createElement('li');
+      if (!p.connected) li.className = 'is-offline';
+      const prog = state.progress && state.progress[p.id];
+      li.innerHTML = `${avatarHTML(p.avatar, p.name).replace('class="avatar', 'class="avatar avatar-sm')}<span class="pl-name"></span>${
+        p.id === state.hostId ? '<span aria-hidden="true">👑</span>' : ''
+      }<span class="pl-progress"></span>`;
+      li.querySelector('.pl-name').textContent =
+        p.name + (p.id === myPlayerId ? ` (${t('you')})` : '') + (p.connected ? '' : ` (${t('offline')})`);
+      const progEl = li.querySelector('.pl-progress');
+      if (prog) {
+        progEl.textContent = `${prog.filled}/${prog.total}`;
+        progEl.classList.toggle('is-done', prog.filled >= prog.total);
+      }
+      els.playersPanelList.appendChild(li);
+    }
+  }
+
+  els.playersPill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = els.playersPanel.hidden;
+    els.playersPanel.hidden = !open;
+    els.playersPill.setAttribute('aria-expanded', String(open));
+  });
+  els.playersPanel.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => {
+    if (!els.playersPanel.hidden) closePlayersPanel();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.playersPanel.hidden) closePlayersPanel();
+  });
+  els.showPlayersSwitch.addEventListener('change', () => {
+    const value = els.showPlayersSwitch.checked;
+    api('setShowPlayers', { value }).catch((err) => {
+      els.showPlayersSwitch.checked = !value;
+      showToast(err.message);
+    });
+  });
 
   function renderChecking() {
     cancelAnimationFrame(timerRAF);

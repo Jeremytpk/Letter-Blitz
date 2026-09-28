@@ -220,6 +220,7 @@ function publicState(room, playerId, now) {
     duration: room.duration,
     categoriesPerRound: room.categoriesPerRound,
     totalRounds: room.totalRounds || DEFAULT_ROUNDS,
+    showPlayers: !!room.showPlayers,
     hostId: effectiveHostId(room, now),
     players: players.map((p) => ({
       id: p.id,
@@ -413,6 +414,17 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
         if (!allowed) throw new GameError('winner_only', 'Only the round winner picks the next letter.');
         startRound(r, L, t);
+      });
+      return { room, playerId };
+    },
+
+    // The room head decides whether everyone can see the player list during rounds.
+    async setShowPlayers({ code, playerId, value }) {
+      const room = await mutate(code, (r) => {
+        const t = now();
+        touch(r, playerId, t);
+        if (playerId !== effectiveHostId(r, t)) throw new GameError('host_only_players', 'Only the host can change this.');
+        r.showPlayers = !!value;
       });
       return { room, playerId };
     },

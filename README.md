@@ -70,6 +70,10 @@ Open the URL it prints (usually `http://localhost:8888`).
   that each page translates.
 - When the room head (👑) leaves, they choose to give the crown to another
   player or close the room for everyone.
+- Everyone gets a notification (with avatar) when a player joins the room.
+- In the timer bar the room head always has a 👥 button with the player
+  count and a scrolling player list (with each player's progress); a switch
+  in that list makes it visible to everyone, and can be turned off anytime.
 - During a round the timer stays pinned to the top of the screen and turns
   amber, then red, as time runs out.
 - Each phone remembers its player name and room, so a refresh or lost
