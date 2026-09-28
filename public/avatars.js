@@ -236,21 +236,23 @@
         </g>`,
     },
     {
-      id: 'oak',
-      name: { en: 'Oak', fr: 'Chêne' },
-      kind: { en: 'Tree', fr: 'Arbre' },
-      svg: `${bg('#d8f3dc')}
-        <circle cx="16" cy="18" r="2" fill="#95d5b2"/><circle cx="86" cy="24" r="1.6" fill="#95d5b2"/>
-        <ellipse cx="50" cy="97" rx="42" ry="9" fill="#95d5b2"/>
-        <path d="M41 97 L44 64 L56 64 L59 97 Z" fill="#8d6346"/>
-        <path d="M44 72 Q40 66 34 66 M56 70 Q61 64 67 64" stroke="#8d6346" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <circle cx="50" cy="36" r="22" fill="#2d6a4f"/><circle cx="30" cy="50" r="15" fill="#2d6a4f"/>
-        <circle cx="70" cy="50" r="15" fill="#2d6a4f"/><circle cx="50" cy="56" r="15" fill="#2d6a4f"/>
-        <circle cx="43" cy="28" r="8" fill="#40916c"/><circle cx="66" cy="42" r="7" fill="#40916c"/><circle cx="28" cy="46" r="5" fill="#40916c"/>
-        <circle cx="36" cy="40" r="3" fill="#e63946"/><circle cx="61" cy="30" r="3" fill="#e63946"/><circle cx="58" cy="58" r="3" fill="#e63946"/>
-        <circle cx="46.5" cy="78" r="1.8" fill="#1b1b24"/><circle cx="53.5" cy="78" r="1.8" fill="#1b1b24"/>
-        <path d="M46 83 Q50 86 54 83" stroke="#1b1b24" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-        ${blush(44, 82)}${blush(56, 82)}`,
+      id: 'gym',
+      name: { en: 'Gym', fr: 'Gym' },
+      kind: { en: 'Gym', fr: 'Salle de sport' },
+      svg: `${bg('#06d6a0')}
+        <g opacity=".35"><rect x="10" y="17" width="16" height="3" rx="1.5" fill="#1b1b24"/><rect x="8" y="13" width="4" height="11" rx="1.5" fill="#1b1b24"/><rect x="24" y="13" width="4" height="11" rx="1.5" fill="#1b1b24"/></g>
+        <path d="M80 14 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#fff" opacity=".8"/>
+        <path d="M34 50 Q32 24 50 24 Q68 24 66 50" stroke="#2b2d42" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <circle cx="50" cy="64" r="24" fill="#2b2d42"/>
+        <rect x="32" y="82" width="36" height="8" rx="3" fill="#2b2d42"/>
+        <path d="M27 54 Q50 47 73 54 L73 60 Q50 53 27 60 Z" fill="#e63946"/>
+        <path d="M72 55 Q80 54 83 60 Q78 58 74 60 Z M72 57 Q79 60 80 67 Q76 63 73 62 Z" fill="#e63946"/>
+        <ellipse cx="43" cy="66" rx="3.4" ry="3.8" fill="#fff"/><ellipse cx="57" cy="66" rx="3.4" ry="3.8" fill="#fff"/>
+        <circle cx="43.6" cy="66.6" r="1.9" fill="#1b1b24"/><circle cx="57.6" cy="66.6" r="1.9" fill="#1b1b24"/>
+        <path d="M44 74 Q50 79 56 74" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <text x="50" y="88.6" text-anchor="middle" font-family="Unbounded, system-ui, sans-serif" font-weight="800" font-size="6.5" fill="#06d6a0">16 KG</text>
+        <path d="M78 36 Q74 42 78 45 Q82 42 78 36 Z" fill="#4cc9f0"/>
+        <circle cx="38" cy="50" r="2.2" fill="#fff" opacity=".35"/>`,
     },
     {
       id: 'bloom',
@@ -337,22 +339,40 @@
         <path d="M44 63 Q50 68 56 63" stroke="#8a4b2a" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
     },
     {
-      id: 'chef',
-      name: { en: 'Chef', fr: 'Chef' },
-      kind: { en: 'Chef', fr: 'Chef cuisinier' },
-      svg: `${bg('#ffd6a5')}
-        ${shoulders('#fff')}
-        <circle cx="44" cy="88" r="1.8" fill="#adb5bd"/><circle cx="56" cy="88" r="1.8" fill="#adb5bd"/><circle cx="44" cy="96" r="1.8" fill="#adb5bd"/><circle cx="56" cy="96" r="1.8" fill="#adb5bd"/>
-        <path d="M39 77 L50 86 L61 77 Z" fill="#e63946"/>
-        <rect x="43" y="66" width="14" height="12" fill="#d9a066"/>
-        <circle cx="31" cy="55" r="4.5" fill="#e6b077"/><circle cx="69" cy="55" r="4.5" fill="#e6b077"/>
-        <ellipse cx="50" cy="55" rx="19" ry="20" fill="#f1c27d"/>
-        <circle cx="37" cy="22" r="10" fill="#fff"/><circle cx="50" cy="17" r="12" fill="#fff"/><circle cx="63" cy="22" r="10" fill="#fff"/>
-        <rect x="33" y="25" width="34" height="13" rx="3" fill="#fff"/><rect x="33" y="34" width="34" height="4" rx="2" fill="#e9ecef"/>
-        <path d="M38 50 Q42 46.5 46 50 M54 50 Q58 46.5 62 50" stroke="#1b1b24" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-        ${blush(37, 57)}${blush(63, 57)}
-        <path d="M37 62 Q44 56 50 60 Q56 56 63 62 Q56 65.5 50 63.5 Q44 65.5 37 62 Z" fill="#6f4e37"/>
-        <path d="M45 67 Q50 70 55 67" stroke="#8a4b2a" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+      id: 'soccer',
+      name: { en: 'Goal', fr: 'Goal' },
+      kind: { en: 'Soccer ball', fr: 'Ballon de foot' },
+      svg: (() => {
+        const cx = 50, cy = 50, R = 27;
+        const pt = (r, deg) => {
+          const a = (deg * Math.PI) / 180;
+          return `${(cx + r * Math.cos(a)).toFixed(2)} ${(cy + r * Math.sin(a)).toFixed(2)}`;
+        };
+        const centre = [0, 1, 2, 3, 4].map((i) => pt(11, -90 + i * 72)).join(' L ');
+        const patches = [0, 1, 2, 3, 4]
+          .map((i) => {
+            const t = -54 + i * 72; // between two centre corners
+            return `<path d="M ${pt(R, t - 17)} L ${pt(22.5, t - 13)} L ${pt(20, t)} L ${pt(22.5, t + 13)} L ${pt(R, t + 17)} A ${R} ${R} 0 0 0 ${pt(R, t - 17)} Z" fill="#1b1b24"/>`;
+          })
+          .join('');
+        const seams = [0, 1, 2, 3, 4]
+          // one seam from each centre corner out to the edge, between two patches
+          .map((i) => `M ${pt(11, -90 + i * 72)} L ${pt(R, -90 + i * 72)}`)
+          .join(' ');
+        return `${bg('#52b788')}
+          <rect x="0" y="0" width="12" height="100" fill="#40916c"/><rect x="24" y="0" width="12" height="100" fill="#40916c"/><rect x="48" y="0" width="12" height="100" fill="#40916c"/><rect x="72" y="0" width="12" height="100" fill="#40916c"/>
+          <path d="M0 88 H100" stroke="#fff" stroke-width="2" opacity=".7"/>
+          <ellipse cx="50" cy="84" rx="22" ry="4" fill="#1b1b24" opacity=".25"/>
+          <circle cx="${cx}" cy="${cy}" r="${R}" fill="#fff"/>
+          ${patches}
+          <path d="${seams}" stroke="#adb5bd" stroke-width="1.6" fill="none"/>
+          <path d="M ${centre} Z" fill="#1b1b24"/>
+          <circle cx="46" cy="48" r="2" fill="#fff"/><circle cx="54" cy="48" r="2" fill="#fff"/>
+          <path d="M46.5 53 Q50 56 53.5 53" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <path d="M14 38 H22 M10 46 H20 M14 54 H22" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+          <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#1b1b24" stroke-width="1.2" opacity=".35"/>
+          <circle cx="40" cy="34" r="2.4" fill="#fff" opacity=".9"/>`;
+      })(),
     },
     {
       id: 'astro',
@@ -373,22 +393,23 @@
         <path d="M36 46 Q39 39 47 38" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".55"/>`,
     },
     {
-      id: 'blaze',
-      name: { en: 'Blaze', fr: 'Blaze' },
-      kind: { en: 'Firefighter', fr: 'Pompier' },
-      svg: `${bg('#9d0208')}
-        <circle cx="16" cy="24" r="1.8" fill="#ffba08" opacity=".7"/><circle cx="84" cy="30" r="1.4" fill="#ffba08" opacity=".7"/><circle cx="22" cy="14" r="1.2" fill="#ffba08" opacity=".7"/>
-        ${shoulders('#e9c46a')}
-        <path d="M16 90 H84" stroke="#f8f9fa" stroke-width="4"/><path d="M16 90 H84" stroke="#adb5bd" stroke-width="1.4"/>
-        <rect x="43" y="66" width="14" height="13" fill="#7a4a20"/>
-        <ellipse cx="50" cy="56" rx="19" ry="20" fill="#8d5524"/>
-        <ellipse cx="60" cy="63" rx="4" ry="2" fill="#1b1b24" opacity=".25"/>
-        ${eye(43, 55)}${eye(57, 55)}
-        <path d="M43 64 Q50 70 57 64" stroke="#3b1d0e" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-        <path d="M26 46 Q26 20 50 20 Q74 20 74 46 Z" fill="#e63946"/>
-        <path d="M50 20 V44" stroke="#b5222f" stroke-width="3"/>
-        <path d="M16 47 Q50 38 84 47 Q50 52 16 47 Z" fill="#b5222f"/>
-        <path d="M44 28 H56 V36 Q50 40 44 36 Z" fill="#ffd166"/><circle cx="50" cy="32" r="1.8" fill="#e63946"/>`,
+      id: 'basket',
+      name: { en: 'Hoops', fr: 'Hoops' },
+      kind: { en: 'Basketball', fr: 'Basket-ball' },
+      svg: `${bg('#577590')}
+        <rect x="62" y="6" width="32" height="22" rx="2" fill="#f8f9fa"/><rect x="71" y="13" width="14" height="10" fill="none" stroke="#e63946" stroke-width="1.6"/>
+        <path d="M66 28 H90" stroke="#e63946" stroke-width="3" stroke-linecap="round"/>
+        <path d="M67 29 L71 40 M72 29 L74 40 M78 29 L78 40 M84 29 L82 40 M89 29 L85 40 M69 34 H87" stroke="#fff" stroke-width="1.2" opacity=".85"/>
+        <ellipse cx="46" cy="90" rx="22" ry="4" fill="#1b1b24" opacity=".25"/>
+        <circle cx="46" cy="58" r="27" fill="#f77f00"/>
+        <path d="M46 31 V85 M19 58 H73" stroke="#6f3a0b" stroke-width="2.4"/>
+        <path d="M28 38 Q40 58 28 78 M64 38 Q52 58 64 78" stroke="#6f3a0b" stroke-width="2.4" fill="none"/>
+        <ellipse cx="38.5" cy="53" rx="3.2" ry="3.8" fill="#fff"/><ellipse cx="53.5" cy="53" rx="3.2" ry="3.8" fill="#fff"/>
+        <circle cx="39" cy="53.6" r="1.9" fill="#1b1b24"/><circle cx="54" cy="53.6" r="1.9" fill="#1b1b24"/>
+        <path d="M40 64 Q46 69 52 64" stroke="#1b1b24" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        ${blush(33, 62)}${blush(59, 62)}
+        <circle cx="34" cy="40" r="2.6" fill="#fff" opacity=".45"/>
+        <path d="M12 20 q3 4 0 8 M18 16 q3 4 0 8" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".6"/>`,
     },
     {
       id: 'slice',
