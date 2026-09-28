@@ -1040,6 +1040,46 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .admin-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
 .feed-item { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .feed-head { display: flex; align-items: center; gap: 8px; }
+.admin-h2-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.admin-h2-link .icon-arrow-right { width: 16px; height: 16px; color: var(--text-dim); transition: transform 0.15s; }
+.admin-h2-link:hover .icon-arrow-right { transform: translateX(3px); color: var(--accent); }
+.view-all { align-self: flex-start; }
+.app:has(#view-admin-list:not([hidden])) { max-width: 820px; }
+#view-admin-list .page-back { background: none; border: none; padding: 0; cursor: pointer; font-family: 'Manrope', sans-serif; }
+.list-head { display: flex; align-items: center; gap: 10px; }
+#list-title { display: inline-flex; align-items: center; gap: 10px; }
+#list-title .icon { width: 28px; height: 28px; }
+.list-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.star-filter { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.star-filter button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.star-filter button .icon { width: 15px; height: 15px; }
+.star-filter button.is-active { color: var(--text); border-color: var(--accent); background: var(--surface); }
+.admin-list { display: flex; flex-direction: column; gap: 10px; }
+.admin-list .feed-item { padding: 14px 16px; }
+.admin-list .feed-text { font-size: 15px; }
 .feed-head > .icon { width: 36px; height: 36px; flex-shrink: 0; }
 .feed-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .feed-name { font-weight: 800; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1050,7 +1090,7 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .feed-text { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .feed-text.is-empty { color: var(--text-dim); font-style: italic; }
 .feed-email { font-size: 13px; font-weight: 700; color: var(--accent); overflow-wrap: anywhere; }
-.feed-delete { padding: 6px 10px; font-size: 12px; }
+.feed-delete { padding: 6px 12px; font-size: 12px; align-self: flex-end; }
 
 /* ---------- modal ---------- */
 

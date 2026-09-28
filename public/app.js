@@ -20,6 +20,7 @@
       scores: document.getElementById('view-scores'),
       closed: document.getElementById('view-closed'),
       admin: document.getElementById('view-admin'),
+      adminList: document.getElementById('view-admin-list'),
     },
     nameInput: document.getElementById('name-input'),
     avatarGrid: document.getElementById('avatar-grid'),
@@ -85,6 +86,15 @@
     adminFeedbackSummary: document.getElementById('admin-feedback-summary'),
     adminMessages: document.getElementById('admin-messages'),
     adminMessagesCount: document.getElementById('admin-messages-count'),
+    btnViewFeedback: document.getElementById('btn-view-feedback'),
+    btnViewMessages: document.getElementById('btn-view-messages'),
+    btnListBack: document.getElementById('btn-list-back'),
+    listTitle: document.getElementById('list-title'),
+    listCount: document.getElementById('list-count'),
+    listSummary: document.getElementById('list-summary'),
+    starFilter: document.getElementById('star-filter'),
+    btnListCsv: document.getElementById('btn-list-csv'),
+    listItems: document.getElementById('list-items'),
 
     feedbackModal: document.getElementById('feedback-modal'),
     feedbackForm: document.getElementById('feedback-form'),
@@ -518,40 +528,42 @@
       }
       showToast(err.message);
     }
-    if (!els.views.admin.hidden) adminTimer = setTimeout(loadDashboard, 10000);
+    if (!els.views.admin.hidden || !els.views.adminList.hidden) adminTimer = setTimeout(loadDashboard, 10000);
   }
 
   function adminSignOut(message) {
     clearTimeout(adminTimer);
     ssSet(SS_ADMIN, null);
     lastDashboard = null;
+    listMode = null;
     showView('landing');
     if (message) showError(message);
   }
   els.btnAdminRefresh.addEventListener('click', loadDashboard);
 
   // CSV downloads (built on the server, saved by the browser).
+  async function downloadCsv(dataset, btn) {
+    btn.disabled = true;
+    try {
+      const data = await api('adminCsv', { token: ssGet(SS_ADMIN), dataset });
+      const url = URL.createObjectURL(new Blob([data.csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(t('csvReady', { file: data.filename }));
+    } catch (err) {
+      if (err.code === 'admin_expired') adminSignOut(err.message);
+      else showToast(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
   for (const btn of document.querySelectorAll('[data-csv]')) {
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      try {
-        const data = await api('adminCsv', { token: ssGet(SS_ADMIN), dataset: btn.dataset.csv });
-        const url = URL.createObjectURL(new Blob([data.csv], { type: 'text/csv;charset=utf-8' }));
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = data.filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        showToast(t('csvReady', { file: data.filename }));
-      } catch (err) {
-        if (err.code === 'admin_expired') adminSignOut(err.message);
-        else showToast(err.message);
-      } finally {
-        btn.disabled = false;
-      }
-    });
+    btn.addEventListener('click', () => downloadCsv(btn.dataset.csv, btn));
   }
 
   // Manual deletion — the only way admin data is ever removed.
@@ -605,57 +617,128 @@
     return btn;
   }
 
+  const INBOX_PREVIEW = 4; // entries shown on the dashboard; "View all" shows the rest
+
+  function feedbackSummary(feedback) {
+    if (!feedback.length) return t('noFeedback');
+    const by = [0, 0, 0, 0, 0, 0];
+    for (const f of feedback) by[f.rating] += 1;
+    const avg = feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length;
+    return t('avgRating', { avg: avg.toFixed(1), n: fmt(feedback.length), s5: by[5], s4: by[4], s3: by[3], s2: by[2], s1: by[1] });
+  }
+
+  function feedbackCard(f) {
+    const card = document.createElement('div');
+    card.className = 'feed-item';
+    card.innerHTML = `<div class="feed-head">${avatarHTML(f.avatar, f.name || '?')}<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div><div class="feed-stars">${[1, 2, 3, 4, 5]
+      .map((v) => `<span class="${v <= f.rating ? '' : 'off'}">${icon('star')}</span>`)
+      .join('')}</div></div><p class="feed-text"></p>`;
+    card.querySelector('.feed-name').textContent = f.name || t('anonymous');
+    card.querySelector('.feed-meta').textContent = [when(f.createdAt), t(`ctx_${f.context}`), f.roomCode, f.lang.toUpperCase()].filter(Boolean).join(' · ');
+    const text = card.querySelector('.feed-text');
+    text.textContent = f.comment || t('noComment');
+    text.classList.toggle('is-empty', !f.comment);
+    card.appendChild(deleteButton(f.id));
+    return card;
+  }
+
+  function messageCard(m) {
+    const card = document.createElement('div');
+    card.className = 'feed-item';
+    card.innerHTML = `<div class="feed-head">${icon('mail')}<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div></div><p class="feed-text"></p>`;
+    card.querySelector('.feed-name').textContent = m.name || t('anonymous');
+    card.querySelector('.feed-meta').textContent = `${when(m.createdAt)} · ${m.lang.toUpperCase()}`;
+    card.querySelector('.feed-text').textContent = m.message;
+    if (m.email) {
+      const a = document.createElement('a');
+      a.className = 'feed-email';
+      a.href = `mailto:${m.email}`;
+      a.textContent = m.email;
+      card.querySelector('.feed-who').appendChild(a);
+    }
+    card.appendChild(deleteButton(m.id));
+    return card;
+  }
+
+  function emptyNote(container, text) {
+    const p = document.createElement('p');
+    p.className = 'admin-empty';
+    p.textContent = text;
+    container.appendChild(p);
+  }
+
+  // Dashboard: the latest few of each, with "View all".
   function renderInbox(d) {
     const feedback = d.feedback || [];
     const messages = d.messages || [];
 
     els.adminFeedbackCount.textContent = fmt(feedback.length);
-    const by = [0, 0, 0, 0, 0, 0];
-    for (const f of feedback) by[f.rating] += 1;
-    const avg = feedback.length ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0;
-    els.adminFeedbackSummary.textContent = feedback.length
-      ? t('avgRating', { avg: avg.toFixed(1), n: fmt(feedback.length), s5: by[5], s4: by[4], s3: by[3], s2: by[2], s1: by[1] })
-      : t('noFeedback');
+    els.adminFeedbackSummary.textContent = feedbackSummary(feedback);
     els.adminFeedback.innerHTML = '';
-    for (const f of feedback) {
-      const card = document.createElement('div');
-      card.className = 'feed-item';
-      card.innerHTML = `<div class="feed-head">${avatarHTML(f.avatar, f.name || '?')}<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div><div class="feed-stars">${[1, 2, 3, 4, 5]
-        .map((v) => `<span class="${v <= f.rating ? '' : 'off'}">${icon('star')}</span>`)
-        .join('')}</div></div><p class="feed-text"></p>`;
-      card.querySelector('.feed-name').textContent = f.name || t('anonymous');
-      card.querySelector('.feed-meta').textContent = [when(f.createdAt), t(`ctx_${f.context}`), f.roomCode, f.lang.toUpperCase()].filter(Boolean).join(' · ');
-      const text = card.querySelector('.feed-text');
-      text.textContent = f.comment || t('noComment');
-      text.classList.toggle('is-empty', !f.comment);
-      card.appendChild(deleteButton(f.id));
-      els.adminFeedback.appendChild(card);
-    }
+    for (const f of feedback.slice(0, INBOX_PREVIEW)) els.adminFeedback.appendChild(feedbackCard(f));
+    els.btnViewFeedback.hidden = !feedback.length;
+    els.btnViewFeedback.textContent = t('viewAll', { n: fmt(feedback.length) });
 
     els.adminMessagesCount.textContent = fmt(messages.length);
     els.adminMessages.innerHTML = '';
-    if (!messages.length) {
-      els.adminMessages.innerHTML = '<p class="admin-empty"></p>';
-      els.adminMessages.firstChild.textContent = t('noMessages');
-    }
-    for (const m of messages) {
-      const card = document.createElement('div');
-      card.className = 'feed-item';
-      card.innerHTML = `<div class="feed-head">${icon('mail')}<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div></div><p class="feed-text"></p>`;
-      card.querySelector('.feed-name').textContent = m.name || t('anonymous');
-      card.querySelector('.feed-meta').textContent = `${when(m.createdAt)} · ${m.lang.toUpperCase()}`;
-      card.querySelector('.feed-text').textContent = m.message;
-      if (m.email) {
-        const a = document.createElement('a');
-        a.className = 'feed-email';
-        a.href = `mailto:${m.email}`;
-        a.textContent = m.email;
-        card.querySelector('.feed-who').appendChild(a);
-      }
-      card.appendChild(deleteButton(m.id));
-      els.adminMessages.appendChild(card);
-    }
+    if (!messages.length) emptyNote(els.adminMessages, t('noMessages'));
+    for (const m of messages.slice(0, INBOX_PREVIEW)) els.adminMessages.appendChild(messageCard(m));
+    els.btnViewMessages.hidden = !messages.length;
+    els.btnViewMessages.textContent = t('viewAll', { n: fmt(messages.length) });
   }
+
+  // ---- full page: every feedback entry or message ----
+
+  let listMode = null; // 'feedback' | 'messages'
+  let starFilter = 0;
+
+  function openList(mode) {
+    listMode = mode;
+    starFilter = 0;
+    showView('adminList');
+    renderList();
+    window.scrollTo(0, 0);
+  }
+
+  function renderList() {
+    if (!listMode || !lastDashboard) return;
+    const isFeedback = listMode === 'feedback';
+    const all = (isFeedback ? lastDashboard.feedback : lastDashboard.messages) || [];
+    const items = isFeedback && starFilter ? all.filter((f) => f.rating === starFilter) : all;
+
+    els.listTitle.innerHTML = `${icon(isFeedback ? 'star' : 'mail')}<span></span>`;
+    els.listTitle.querySelector('span').textContent = t(isFeedback ? 'allFeedback' : 'allMessages');
+    els.listCount.textContent = fmt(all.length);
+    els.listSummary.textContent = isFeedback
+      ? feedbackSummary(all) + (starFilter ? ` · ${t('showingOf', { shown: fmt(items.length), total: fmt(all.length) })}` : '')
+      : '';
+    els.listSummary.hidden = !isFeedback;
+    els.starFilter.hidden = !isFeedback;
+    for (const btn of els.starFilter.querySelectorAll('[data-stars]')) {
+      btn.classList.toggle('is-active', Number(btn.dataset.stars) === starFilter);
+    }
+
+    els.listItems.innerHTML = '';
+    if (!items.length) emptyNote(els.listItems, isFeedback ? (starFilter ? t('noMatch') : t('noFeedback')) : t('noMessages'));
+    for (const item of items) els.listItems.appendChild(isFeedback ? feedbackCard(item) : messageCard(item));
+  }
+
+  for (const el of document.querySelectorAll('[data-open-list]')) {
+    el.addEventListener('click', () => openList(el.dataset.openList));
+  }
+  for (const btn of els.starFilter.querySelectorAll('[data-stars]')) {
+    btn.addEventListener('click', () => {
+      starFilter = Number(btn.dataset.stars);
+      renderList();
+    });
+  }
+  els.btnListCsv.addEventListener('click', () => downloadCsv(listMode, els.btnListCsv));
+  els.btnListBack.addEventListener('click', () => {
+    listMode = null;
+    showView('admin');
+    renderDashboard();
+    window.scrollTo(0, 0);
+  });
 
   function renderDashboard() {
     const d = lastDashboard;
@@ -695,6 +778,7 @@
     });
 
     renderInbox(d);
+    renderList();
 
     els.adminRoomsCount.textContent = fmt(d.rooms.length);
     els.adminRooms.innerHTML = '';

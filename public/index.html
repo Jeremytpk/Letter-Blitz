@@ -118,14 +118,16 @@
     </section>
 
     <section class="admin-section">
-      <h2 class="admin-h2"><span data-icon="star"></span><span data-i18n="feedbackH">Feedback</span> <span class="admin-count" id="admin-feedback-count">0</span></h2>
+      <h2 class="admin-h2"><button type="button" class="admin-h2-link" data-open-list="feedback"><span data-icon="star"></span><span data-i18n="feedbackH">Feedback</span> <span class="admin-count" id="admin-feedback-count">0</span><span data-icon="arrow-right"></span></button></h2>
       <p class="admin-note" id="admin-feedback-summary"></p>
       <div class="admin-feed" id="admin-feedback"></div>
+      <button type="button" class="btn btn-secondary btn-sm view-all" id="btn-view-feedback" data-open-list="feedback"></button>
     </section>
 
     <section class="admin-section">
-      <h2 class="admin-h2"><span data-icon="mail"></span><span data-i18n="messagesH">Messages</span> <span class="admin-count" id="admin-messages-count">0</span></h2>
+      <h2 class="admin-h2"><button type="button" class="admin-h2-link" data-open-list="messages"><span data-icon="mail"></span><span data-i18n="messagesH">Messages</span> <span class="admin-count" id="admin-messages-count">0</span><span data-icon="arrow-right"></span></button></h2>
       <div class="admin-feed" id="admin-messages"></div>
+      <button type="button" class="btn btn-secondary btn-sm view-all" id="btn-view-messages" data-open-list="messages"></button>
     </section>
 
     <section class="admin-section admin-data">
@@ -171,6 +173,33 @@
         <table class="admin-table" id="admin-days"></table>
       </div>
     </section>
+  </section>
+
+  <!-- ===================== ADMIN: ALL FEEDBACK / MESSAGES ===================== -->
+  <section class="view" id="view-admin-list" hidden>
+    <header class="topbar">
+      <button type="button" class="page-back" id="btn-list-back"><span data-icon="arrow-left"></span><span data-i18n="dashboard">Dashboard</span></button>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+      </div>
+    </header>
+    <div class="list-head">
+      <h1 class="admin-title" id="list-title"></h1>
+      <span class="admin-count" id="list-count">0</span>
+    </div>
+    <p class="admin-note" id="list-summary"></p>
+    <div class="list-tools">
+      <div class="star-filter" id="star-filter" role="group" hidden>
+        <button type="button" data-stars="0" data-i18n="filterAll">All</button>
+        <button type="button" data-stars="5">5<span data-icon="star"></span></button>
+        <button type="button" data-stars="4">4<span data-icon="star"></span></button>
+        <button type="button" data-stars="3">3<span data-icon="star"></span></button>
+        <button type="button" data-stars="2">2<span data-icon="star"></span></button>
+        <button type="button" data-stars="1">1<span data-icon="star"></span></button>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="btn-list-csv" data-i18n="downloadCsv">Download CSV</button>
+    </div>
+    <div class="admin-list" id="list-items"></div>
   </section>
 
   <!-- ===================== ROOM CLOSED ===================== -->
