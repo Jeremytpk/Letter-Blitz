@@ -168,6 +168,7 @@ async function taxaWithin(ids, taxon) {
 
 function fits(catId, id, f, taxa) {
   const spec = CATEGORY_SPEC[catId];
+  if (spec.anyThing) return true;
   const any = (prop, set) => [...(f[prop] || [])].some((v) => set.has(v));
   if (spec.capitals && CAPITALS.has(id)) return true;
   const classes = CLASS_SETS[catId];

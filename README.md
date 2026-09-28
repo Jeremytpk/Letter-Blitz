@@ -122,5 +122,14 @@ Open the URL it prints (usually `http://localhost:8888`).
   eligible game (minimum players and rounds) gets the next unused code, one
   prize per player per campaign, and can leave an email (with consent) for
   delivery. Each campaign has a rules page (`/rules.html?c=<id>`) and a
-  report (rooms, players reached, games, prizes, codes left, site visits).
-  See `netlify/lib/sponsors.mjs`.
+  report (rooms, players reached, games, prizes, codes left, site visits,
+  answers collected). A campaign can have up to 3 sponsored categories,
+  played one per round in turn (round 1 the first, round 2 the second…);
+  **Generate** fills one with a ready-made question about the sponsor's
+  products ("Best product to buy at …", "Worst product you bought at …",
+  "A product you'd recommend from …"). Each can be checked as "Any real
+  product or thing" (the answer only has to exist on Wikidata). Every answer
+  given in them is saved without player
+  names; the campaign card downloads them as a full list or a summary (how
+  often each answer was given), and `npm run export-data` keeps them in
+  `admin-data/all-sponsor-answers.csv`. See `netlify/lib/sponsors.mjs`.

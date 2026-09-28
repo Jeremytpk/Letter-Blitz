@@ -102,12 +102,12 @@ async function main() {
   writeFileSync(new URL('dashboard.json', dir), JSON.stringify(dashboard, null, 2));
 
   const files = {};
-  for (const dataset of ['totals', 'daily', 'rooms', 'players', 'feedback', 'messages', 'claims']) {
+  for (const dataset of ['totals', 'daily', 'rooms', 'players', 'feedback', 'messages', 'claims', 'answers']) {
     const { csv } = await call('adminCsv', { token, dataset });
     writeFileSync(new URL(`${dataset}.csv`, dir), csv);
     files[dataset] = csv;
   }
-  console.log(`Saved snapshot: admin-data/${stamp}/ (dashboard.json, totals, daily, rooms, players, feedback, messages, claims)`);
+  console.log(`Saved snapshot: admin-data/${stamp}/ (dashboard.json, totals, daily, rooms, players, feedback, messages, claims, answers)`);
 
   const counts = {
     daily: mergeInto(new URL('all-daily-stats.csv', OUT), files.daily, ['date']),
@@ -116,11 +116,12 @@ async function main() {
     feedback: mergeInto(new URL('all-feedback.csv', OUT), files.feedback, ['id']),
     messages: mergeInto(new URL('all-messages.csv', OUT), files.messages, ['id']),
     claims: mergeInto(new URL('all-prize-claims.csv', OUT), files.claims, ['campaign', 'prize_code']),
+    answers: mergeInto(new URL('all-sponsor-answers.csv', OUT), files.answers, ['id']),
   };
   writeFileSync(new URL('latest-totals.csv', OUT), files.totals);
   console.log(
     `Running files: all-daily-stats.csv (${counts.daily} days), all-rooms.csv (${counts.rooms} rooms), all-players.csv (${counts.players} rows), ` +
-      `all-feedback.csv (${counts.feedback}), all-messages.csv (${counts.messages}), all-prize-claims.csv (${counts.claims})`
+      `all-feedback.csv (${counts.feedback}), all-messages.csv (${counts.messages}), all-prize-claims.csv (${counts.claims}), all-sponsor-answers.csv (${counts.answers})`
   );
 
   if (deleteAfter) {

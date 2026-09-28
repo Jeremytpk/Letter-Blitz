@@ -292,12 +292,10 @@
       </fieldset>
 
       <fieldset class="admin-card">
-        <legend class="stat-label" data-i18n="sfCategory">Sponsored category (optional)</legend>
-        <div class="sf-row">
-          <label class="field"><span class="field-label" data-i18n="sfCategoryEn">Category (English)</span><input id="sf-cat-en" type="text" maxlength="40" placeholder="Juice flavour" /></label>
-          <label class="field"><span class="field-label" data-i18n="sfCategoryFr">Category (French)</span><input id="sf-cat-fr" type="text" maxlength="40" placeholder="Parfum de jus" /></label>
-        </div>
-        <label class="field"><span class="field-label" data-i18n="sfCheckAs">Check answers as</span><select id="sf-check-as"></select></label>
+        <legend class="stat-label" data-i18n="sfCategory">Sponsored categories (optional)</legend>
+        <p class="admin-note" data-i18n="sfCategoriesHint">Up to 3. One is played each round, in turn: round 1 uses the first, round 2 the second, round 3 the third, then again from the first.</p>
+        <div id="sf-cats"></div>
+        <p class="admin-note" data-i18n="sfCategoryNote">Every answer in these categories is saved without player names; download them from the campaign card.</p>
       </fieldset>
 
       <fieldset class="admin-card">

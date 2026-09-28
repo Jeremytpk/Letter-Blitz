@@ -24,6 +24,8 @@
       p7: 'Answers are checked automatically and scores are final. Jerttech may cancel a prize won by cheating — for example one person playing several players, sharing answers, or tampering with the game.',
       h8: 'Your email',
       p8: 'To receive the prize, the winner is asked for an email address. With the winner’s agreement, Jerttech shares it with {name} only to deliver the prize.',
+      h12: 'Your answers in the sponsor’s categories',
+      p12: 'Answers typed in the sponsor’s categories ({category}) are saved and shared with {name} so they can learn what players think of their products. Your name and avatar are not included.',
       h9: 'Good to know',
       p9: 'If you are under 18, ask a parent or guardian before claiming a prize. You are responsible for following the laws where you live; this offer is void where prohibited. How we handle information is explained in the Privacy Policy.',
       h10: 'More rules from {name}',
@@ -50,6 +52,8 @@
       p7: 'Les réponses sont vérifiées automatiquement et les scores sont définitifs. Jerttech peut annuler un lot gagné en trichant — par exemple une même personne jouant plusieurs joueurs, le partage de réponses ou la manipulation du jeu.',
       h8: 'Votre e-mail',
       p8: 'Pour recevoir le lot, le gagnant doit indiquer une adresse e-mail. Avec son accord, Jerttech la transmet à {name} uniquement pour la remise du lot.',
+      h12: 'Vos réponses dans les catégories du sponsor',
+      p12: 'Les réponses données dans les catégories du sponsor ({category}) sont enregistrées et transmises à {name} pour l’aider à savoir ce que les joueurs pensent de ses produits. Votre nom et votre avatar ne sont pas inclus.',
       h9: 'Bon à savoir',
       p9: 'Si vous avez moins de 18 ans, demandez l’accord d’un parent ou d’un tuteur avant de réclamer un lot. Vous êtes responsable du respect des lois de votre pays ; cette offre est nulle là où elle est interdite. Le traitement des informations est expliqué dans la Politique de confidentialité.',
       h10: 'Règles supplémentaires de {name}',
@@ -83,11 +87,16 @@
       players: c.minPlayers,
       rounds: c.minRounds,
       prize: (c.prize && (c.prize[lang] || c.prize.en || c.prize.fr)) || '—',
+      category: (c.categories || [])
+        .map((cat) => cat.label[lang] || cat.label.en || cat.label.fr)
+        .map((label) => (lang === 'fr' ? `« ${label} »` : `“${label}”`))
+        .join(', '),
     };
     add('h1', fill(T.title, vars));
     add('p', fill(T.intro, vars)).className = 'lead';
     const sections = ['1', '2', '3', '4', '5', '6', '7'];
     if (c.collectEmail) sections.push('8');
+    if (vars.category) sections.push('12');
     sections.push('9');
     for (const n of sections) {
       add('h2', fill(T[`h${n}`], vars));

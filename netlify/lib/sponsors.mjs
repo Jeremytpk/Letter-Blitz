@@ -5,11 +5,14 @@
 // game: a "presented by" banner, an optional sponsored category, and a prize
 // for the winner of an eligible game (enough players and rounds). Prize codes are
 // handed out one per winner, one prize per player per campaign, and are only
-// ever sent to the winner's own device.
+// ever sent to the winner's own device. Answers given in the sponsor's
+// category are kept (without player names) so the sponsor can see what
+// players think of their products.
 //
 // Documents: campaign-<id> (settings), campcodes-<id> (prize codes),
 // campstats-<id> (numbers for the sponsor), claim-<id>-… (each prize given),
-// prizegot-<id>-<playerId> (one prize per player per campaign).
+// prizegot-<id>-<playerId> (one prize per player per campaign),
+// campans-<id>-<roomCreatedAt>-<roomCode> (sponsor-category answers, one per room).
 // ---------------------------------------------------------------------------
 
 import { randomBytes } from 'node:crypto';
@@ -19,6 +22,7 @@ const CAMPAIGN = 'campaign-';
 const CODES = 'campcodes-';
 const STATS = 'campstats-';
 const CLAIM = 'claim-';
+const ANSWERS = 'campans-';
 
 export class SponsorError extends Error {
   constructor(code, message) {
@@ -32,6 +36,16 @@ const multiline = (v, max) => ({ en: cleanText(v && v.en, { max, singleLine: fal
 const LOGO_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
 const MAX_LOGO = 120 * 1024;
 const MAX_CODES = 5000;
+export const MAX_SPONSOR_CATEGORIES = 3;
+
+// A campaign's own categories: [{ label: { en, fr }, checkAs }], played one
+// per round in turn. Campaigns saved before there could be several had a
+// single categoryLabel / checkAs.
+export function campaignCategories(c) {
+  if (!c) return [];
+  if (Array.isArray(c.categories)) return c.categories;
+  return c.categoryLabel && (c.categoryLabel.en || c.categoryLabel.fr) ? [{ label: c.categoryLabel, checkAs: c.checkAs || '' }] : [];
+}
 
 function validUrl(u) {
   const s = String(u || '').trim();
@@ -66,7 +80,7 @@ export function publicCampaign(c) {
     logo: c.logo,
     tagline: c.tagline,
     prize: c.prize,
-    categoryLabel: c.categoryLabel,
+    categories: campaignCategories(c).map((cat) => ({ label: cat.label })),
     minPlayers: c.minPlayers,
     minRounds: c.minRounds,
     collectEmail: c.collectEmail,
@@ -135,7 +149,10 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
         }
         logo = input.logo;
       }
-      const checkAs = categoryIds.includes(input.checkAs) ? input.checkAs : '';
+      const categories = (Array.isArray(input.categories) ? input.categories : [])
+        .map((cat) => ({ label: bilingual(cat && cat.label, 60), checkAs: categoryIds.includes(cat && cat.checkAs) ? cat.checkAs : '' }))
+        .filter((cat) => cat.label.en || cat.label.fr)
+        .slice(0, MAX_SPONSOR_CATEGORIES);
       const campaign = {
         id,
         name,
@@ -144,8 +161,7 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
         logo,
         tagline: bilingual(input.tagline, 120),
         prize: bilingual(input.prize, 120),
-        categoryLabel: bilingual(input.categoryLabel, 40),
-        checkAs,
+        categories,
         minPlayers: Math.min(12, Math.max(2, Math.round(Number(input.minPlayers) || 3))),
         minRounds: [1, 3, 5, 7, 11].includes(Number(input.minRounds)) ? Number(input.minRounds) : 3,
         collectEmail: !!input.collectEmail,
@@ -174,7 +190,8 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
     async remove(id) {
       const { blobs } = await store.list({ prefix: `${CLAIM}${id}-` });
       const marks = await store.list({ prefix: `prizegot-${id}-` });
-      await Promise.all([...blobs, ...marks.blobs].map((b) => store.delete(b.key)));
+      const answers = await store.list({ prefix: `${ANSWERS}${id}-` });
+      await Promise.all([...blobs, ...marks.blobs, ...answers.blobs].map((b) => store.delete(b.key)));
       await Promise.all([CAMPAIGN, CODES, STATS].map((p) => store.delete(p + id)));
     },
 
@@ -239,6 +256,56 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
       claim.emailAt = now();
       await store.setJSON(claimKey, claim);
       return true;
+    },
+
+    // Keep one round's answers in the sponsor's category (no player names).
+    // Returns how many were saved.
+    async recordAnswers(id, room, round, letter, category, entries) {
+      const answers = entries.filter((e) => e.text).map(({ text, valid, exists, points }) => ({ text, valid, exists, points }));
+      if (!answers.length) return 0;
+      try {
+        return await mutate(
+          `${ANSWERS}${id}-${room.createdAt}-${room.code}`,
+          (d) => {
+            if (d.rounds.some((r) => r.round === round)) return 0;
+            d.rounds.push({ round, letter, category, at: now(), answers });
+            return answers.length;
+          },
+          { roomCode: room.code, roomCreatedAt: room.createdAt, rounds: [] }
+        );
+      } catch (err) {
+        console.warn('Saving sponsor answers failed:', err.message);
+        return 0;
+      }
+    },
+
+    // Every answer given in a campaign's category (all campaigns if no id), newest first.
+    async answers(id) {
+      if (id && !/^[a-z0-9]{8,24}$/.test(String(id))) return [];
+      const campaigns = new Map((await list()).map((c) => [c.id, c.name]));
+      const { blobs } = await store.list({ prefix: id ? `${ANSWERS}${id}-` : ANSWERS });
+      const docs = await Promise.all(blobs.map((b) => getJSON(b.key)));
+      const rows = [];
+      blobs.forEach((b, n) => {
+        const doc = docs[n];
+        if (!doc) return;
+        const campaignId = b.key.slice(ANSWERS.length).split('-')[0];
+        for (const r of doc.rounds) {
+          r.answers.forEach((a, i) => {
+            rows.push({
+              id: `${doc.roomCode}-${doc.roomCreatedAt}-${r.round}-${i}`,
+              campaign: campaigns.get(campaignId) || campaignId,
+              at: r.at,
+              roomCode: doc.roomCode,
+              round: r.round,
+              letter: r.letter,
+              category: r.category,
+              ...a,
+            });
+          });
+        }
+      });
+      return rows.sort((a, b) => b.at - a.at);
     },
 
     async claims(id) {

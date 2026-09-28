@@ -6,6 +6,9 @@
 // - claims:      the answer has one of these exact property values
 // - capitals:    the answer is the current capital of a country
 // - taxonOf:     the answer is a living thing in this branch of the tree of life
+// - anyThing:    anything real on Wikidata counts — only checks the answer exists.
+//                Not a playable category; sponsors use it for questions like
+//                "Best product to buy at …", where any real product is fine.
 //
 // `classes` and `occupations` are expanded to every subclass by
 // `npm run build-categories`, which writes category-data.mjs. Re-run it after
@@ -33,4 +36,5 @@ export const CATEGORY_SPEC = {
   brand: { classes: ['Q431289', 'Q167270', 'Q4830453', 'Q783794'] }, // brand, trademark, business, company
   job: { classes: ['Q28640', 'Q12737077'] }, // occupation, profession
   sport: { classes: ['Q349', 'Q31629'] }, // sport, type of sport
+  anything: { anyThing: true },
 };

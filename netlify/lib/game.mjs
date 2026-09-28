@@ -11,10 +11,10 @@
 import { checkCategories } from './category.mjs';
 import { createStats } from './stats.mjs';
 import { createAdmin, isAdminEntry } from './admin.mjs';
-import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv, claimsCsv } from './archive.mjs';
+import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv, claimsCsv, sponsorAnswersCsv, sponsorAnswerSummaryCsv } from './archive.mjs';
 import { createInbox, InboxError } from './inbox.mjs';
 import { cleanText, isPlayerId, isRoomCode, underLimit } from './security.mjs';
-import { createSponsors, publicCampaign, SponsorError } from './sponsors.mjs';
+import { campaignCategories, createSponsors, publicCampaign, SponsorError } from './sponsors.mjs';
 import { CATEGORY_SPEC } from './category-spec.mjs';
 
 export const CATEGORY_BANK = [
@@ -166,12 +166,31 @@ function effectiveHostId(room, now) {
   return next ? next.id : room.hostId;
 }
 
+// The sponsor's categories in a room: [{ label, checkAs }]. Rooms created
+// before sponsors could have several kept a single one.
+function sponsorCategories(sponsor) {
+  if (!sponsor) return [];
+  if (sponsor.categories) return sponsor.categories;
+  return sponsor.hasCategory ? [{ label: sponsor.categoryLabel, checkAs: sponsor.checkAs }] : [];
+}
+
+// This round's sponsor category, if any.
+function roundSponsorCategory(room) {
+  const cat = room.categories.find((c) => c.id === 'sponsor');
+  return cat ? sponsorCategories(room.sponsor)[cat.slot || 0] || null : null;
+}
+
 function startRound(room, letter, now) {
   room.round += 1;
   room.letter = letter;
   room.categories = pickCategories(room.categoriesPerRound);
-  // A sponsor's category (if any) is played every round, after the others.
-  if (room.sponsor && room.sponsor.hasCategory) room.categories.push({ id: 'sponsor', label: room.sponsor.categoryLabel });
+  // One of the sponsor's categories (if any) is played every round, after the
+  // others; with several, they take turns (round 1 → first, round 2 → second…).
+  const sponsorCats = sponsorCategories(room.sponsor);
+  if (sponsorCats.length) {
+    const slot = (room.round - 1) % sponsorCats.length;
+    room.categories.push({ id: 'sponsor', label: sponsorCats[slot].label, slot });
+  }
   room.phase = 'playing';
   room.startedAt = now + COUNTDOWN_MS;
   room.answers = {};
@@ -372,14 +391,15 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     if (!claimed) return room;
 
     const letter = room.letter.toLowerCase();
+    // The sponsor's category is checked with the rule the admin picked for it (if any).
+    const sponsorCheck = (roundSponsorCategory(room) || {}).checkAs || '';
     const toCheck = [];
     for (const answers of Object.values(room.answers)) {
       for (const cat of room.categories) {
         const raw = String(answers[cat.id] || '').trim();
         const norm = normalize(raw);
         if (!norm || norm[0] !== letter) continue;
-        // The sponsor's category is checked with the rule the admin picked (if any).
-        const catId = cat.id === 'sponsor' ? room.sponsor && room.sponsor.checkAs : cat.id;
+        const catId = cat.id === 'sponsor' ? sponsorCheck : cat.id;
         if (catId) toCheck.push({ catId, text: raw });
       }
     }
@@ -389,10 +409,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     } catch (err) {
       console.warn('Answer check failed:', err.message);
     }
-    if (room.sponsor && room.sponsor.checkAs) {
+    if (sponsorCheck) {
       for (const [key, value] of [...found]) {
         const [catId, ...rest] = key.split('|');
-        if (catId === room.sponsor.checkAs) found.set(`sponsor|${rest.join('|')}`, value);
+        if (catId === sponsorCheck) found.set(`sponsor|${rest.join('|')}`, value);
       }
     }
 
@@ -405,6 +425,13 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     if (scored) {
       const players = Object.keys(result.players).length;
       await stats.bump({ roundsPlayed: 1, roomMs: result.duration, playerMs: result.duration * players });
+      // Keep what players answered in the sponsor's category, for the sponsor.
+      const sponsorCat = result.sponsor && result.reveal && result.reveal.perCategory.find((c) => c.catId === 'sponsor');
+      if (sponsorCat) {
+        const label = (roundSponsorCategory(result) || {}).label || sponsorCat.label;
+        const saved = await sponsors.recordAnswers(result.sponsor.id, result, round, result.letter, label, sponsorCat.entries);
+        if (saved) await sponsors.bump(result.sponsor.id, { answers: saved });
+      }
       if (result.sponsor && result.reveal && result.reveal.final) {
         try {
           return await awardPrizes(code, result);
@@ -452,9 +479,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           sponsor: campaign
             ? {
                 id: campaign.id,
-                hasCategory: !!(campaign.categoryLabel.en || campaign.categoryLabel.fr),
-                categoryLabel: campaign.categoryLabel.en || campaign.categoryLabel.fr,
-                checkAs: campaign.checkAs,
+                categories: campaignCategories(campaign).map((c) => ({ label: c.label.en || c.label.fr, checkAs: c.checkAs })),
                 minPlayers: campaign.minPlayers,
                 minRounds: campaign.minRounds,
               }
@@ -679,7 +704,8 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { dashboard: await dashboard() } };
     },
 
-    // CSV exports: 'daily' | 'rooms' | 'players' | 'totals' | 'feedback' | 'messages'.
+    // CSV exports: 'daily' | 'rooms' | 'players' | 'totals' | 'feedback' | 'messages'
+    // | 'claims' | 'answers' | 'answerSummary' (the last three per campaign, or all).
     async adminCsv({ token, dataset, campaignId }) {
       if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
       const t = now();
@@ -693,6 +719,8 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       } else if (dataset === 'feedback') csv = feedbackCsv(await inbox.listFeedback());
       else if (dataset === 'messages') csv = messagesCsv(await inbox.listMessages());
       else if (dataset === 'claims') csv = claimsCsv(await sponsors.claims(campaignId));
+      else if (dataset === 'answers') csv = sponsorAnswersCsv(await sponsors.answers(campaignId));
+      else if (dataset === 'answerSummary') csv = sponsorAnswerSummaryCsv(await sponsors.answers(campaignId));
       else throw new GameError('bad_dataset', 'Unknown export.');
       return { room: null, playerId: null, extra: { csv, filename: `letter-blitz-${dataset}-${stamp}.csv` } };
     },

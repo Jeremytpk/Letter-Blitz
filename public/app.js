@@ -112,7 +112,7 @@
     sfLogoPreview: document.getElementById('sf-logo-preview'),
     sfLogoRemove: document.getElementById('sf-logo-remove'),
     sfCodesInfo: document.getElementById('sf-codes-info'),
-    sfCheckAs: document.getElementById('sf-check-as'),
+    sfCats: document.getElementById('sf-cats'),
     listTitle: document.getElementById('list-title'),
     listCount: document.getElementById('list-count'),
     listSummary: document.getElementById('list-summary'),
@@ -806,7 +806,7 @@
   let lastCampaigns = [];
   let editingCampaign = null; // campaign being edited, or null for a new one
   let pendingLogo; // undefined = unchanged, '' = removed, data URL = new logo
-  const CHECK_AS = ['country', 'capital', 'city', 'man', 'woman', 'singer', 'car', 'actor', 'fruit', 'animal', 'food', 'vegetable', 'athlete', 'movie_tv', 'brand', 'job', 'sport'];
+  const CHECK_AS = ['anything', 'country', 'capital', 'city', 'man', 'woman', 'singer', 'car', 'actor', 'fruit', 'animal', 'food', 'vegetable', 'athlete', 'movie_tv', 'brand', 'job', 'sport'];
 
   function campaignStatus(c) {
     const now = Date.now();
@@ -845,6 +845,7 @@
         [r.prizes, 'cPrizes'],
         [r.codesLeft, 'cCodesLeft'],
         [r.clicks, 'cClicks'],
+        [r.answers, 'cAnswers'],
       ]) {
         const div = document.createElement('div');
         div.innerHTML = '<b></b><span></span>';
@@ -865,6 +866,10 @@
       };
       btn(t('edit'), 'btn-secondary', () => openCampaignEditor(c));
       btn(t('claimsCsv'), 'btn-secondary', (b) => downloadCsv('claims', b, { campaignId: c.id }));
+      if (r.answers) {
+        btn(t('answerSummaryCsv'), 'btn-secondary', (b) => downloadCsv('answerSummary', b, { campaignId: c.id }));
+        btn(t('answersCsv'), 'btn-secondary', (b) => downloadCsv('answers', b, { campaignId: c.id }));
+      }
       btn(t('deleteItem'), 'btn-danger-outline', async () => {
         if (!window.confirm(t('confirmDeleteCampaign', { name: c.name }))) return;
         try {
@@ -892,13 +897,7 @@
     pendingLogo = undefined;
     els.sfError.hidden = true;
     els.sponsorFormTitle.textContent = t(c ? 'editCampaign' : 'newCampaign');
-    els.sfCheckAs.innerHTML = '';
-    for (const id of ['', ...CHECK_AS]) {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = id ? categoryLabel({ id }) : t('sfCheckNone');
-      els.sfCheckAs.appendChild(opt);
-    }
+    buildCategorySlots(c ? c.categories || [] : []);
     const now = Date.now();
     field('sf-name').value = c ? c.name : '';
     field('sf-url').value = c ? c.url : '';
@@ -911,9 +910,6 @@
     field('sf-min-players').value = c ? c.minPlayers : 3;
     field('sf-min-rounds').value = String(c ? c.minRounds : 3);
     field('sf-email').checked = c ? c.collectEmail : false;
-    field('sf-cat-en').value = c ? c.categoryLabel.en : '';
-    field('sf-cat-fr').value = c ? c.categoryLabel.fr : '';
-    els.sfCheckAs.value = c ? c.checkAs : '';
     field('sf-starts').value = toLocalInput(c ? c.startsAt : now);
     field('sf-ends').value = toLocalInput(c ? c.endsAt : now + 30 * 86400000);
     field('sf-active').checked = c ? c.active : true;
@@ -924,6 +920,85 @@
     els.sfCodesInfo.textContent = rep ? t('sfCodesInfo', { total: fmt(rep.codesTotal), left: fmt(rep.codesLeft) }) : '';
     showView('adminSponsor');
     window.scrollTo(0, 0);
+  }
+
+  // Sponsored categories: up to 3 slots, played one per round in turn.
+  const SPONSOR_CATEGORY_SLOTS = 3;
+  function buildCategorySlots(cats) {
+    els.sfCats.innerHTML = '';
+    for (let i = 0; i < SPONSOR_CATEGORY_SLOTS; i++) {
+      const cat = cats[i] || { label: { en: '', fr: '' }, checkAs: 'anything' };
+      const slot = document.createElement('div');
+      slot.className = 'sf-cat';
+      slot.innerHTML = `
+        <div class="sf-cat-head">
+          <span class="field-label"></span>
+          <button type="button" class="btn btn-secondary btn-sm sf-generate" data-i18n="sfGenerate">Generate</button>
+        </div>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfCategoryEn">Category (English)</span><input class="sf-cat-en" type="text" maxlength="60" /></label>
+          <label class="field"><span class="field-label" data-i18n="sfCategoryFr">Category (French)</span><input class="sf-cat-fr" type="text" maxlength="60" /></label>
+        </div>
+        <label class="field"><span class="field-label" data-i18n="sfCheckAs">Check answers as</span><select class="sf-check-as"></select></label>
+      `;
+      slot.querySelector('.sf-cat-head .field-label').textContent = t('sfCategoryN', { n: i + 1 });
+      const select = slot.querySelector('.sf-check-as');
+      for (const id of ['', ...CHECK_AS]) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = id ? categoryLabel({ id }) : t('sfCheckNone');
+        select.appendChild(opt);
+      }
+      slot.querySelector('.sf-cat-en').value = cat.label.en;
+      slot.querySelector('.sf-cat-fr').value = cat.label.fr;
+      select.value = cat.checkAs;
+      slot.querySelector('.sf-generate').addEventListener('click', () => generateCategory(slot, i));
+      els.sfCats.appendChild(slot);
+    }
+    window.i18n.applyStatic(els.sfCats);
+  }
+
+  function readCategorySlots() {
+    return [...els.sfCats.querySelectorAll('.sf-cat')].map((slot) => ({
+      label: { en: slot.querySelector('.sf-cat-en').value, fr: slot.querySelector('.sf-cat-fr').value },
+      checkAs: slot.querySelector('.sf-check-as').value,
+    }));
+  }
+
+  // Ready-made questions about the sponsor's products. An empty slot gets
+  // the matching one of the first three (best, worst, would recommend);
+  // after that each click picks another one not already in use.
+  const SPONSOR_QUESTIONS = [
+    { en: 'Best product to buy at {name}', fr: 'Meilleur produit à acheter chez {name}' },
+    { en: 'Worst product you bought at {name}', fr: 'Pire produit acheté chez {name}' },
+    { en: 'A product you’d recommend from {name}', fr: 'Un produit que vous recommandez chez {name}' },
+    { en: 'Something you always buy at {name}', fr: 'Ce que vous achetez toujours chez {name}' },
+    { en: 'Your favourite {name} product', fr: 'Votre produit {name} préféré' },
+    { en: 'A product {name} should start selling', fr: 'Un produit que {name} devrait vendre' },
+    { en: 'A gift you’d buy at {name}', fr: 'Un cadeau à acheter chez {name}' },
+    { en: 'First thing you grab at {name}', fr: 'Premier article que vous prenez chez {name}' },
+    { en: 'A product you’d like on sale at {name}', fr: 'Un produit que vous voudriez en promo chez {name}' },
+    { en: 'A product you’d never buy at {name}', fr: 'Un produit que vous n’achèteriez jamais chez {name}' },
+  ];
+  function generateCategory(slot, index) {
+    const name = field('sf-name').value.trim();
+    if (!name) {
+      showToast(t('sfGenerateNeedName'));
+      field('sf-name').focus();
+      return;
+    }
+    const fill = (q) => ({ en: q.en.replace('{name}', name), fr: q.fr.replace('{name}', name) });
+    const en = slot.querySelector('.sf-cat-en');
+    const inUse = new Set(readCategorySlots().map((c) => c.label.en.trim()));
+    let pick = !en.value.trim() && SPONSOR_QUESTIONS[index] && !inUse.has(fill(SPONSOR_QUESTIONS[index]).en) ? SPONSOR_QUESTIONS[index] : null;
+    if (!pick) {
+      const free = SPONSOR_QUESTIONS.filter((q) => !inUse.has(fill(q).en));
+      pick = free[Math.floor(Math.random() * free.length)] || SPONSOR_QUESTIONS[0];
+    }
+    const q = fill(pick);
+    en.value = q.en;
+    slot.querySelector('.sf-cat-fr').value = q.fr;
+    slot.querySelector('.sf-check-as').value = 'anything';
   }
 
   function showLogoPreview(src) {
@@ -983,8 +1058,7 @@
       color: field('sf-color').value,
       tagline: { en: field('sf-tagline-en').value, fr: field('sf-tagline-fr').value },
       prize: { en: field('sf-prize-en').value, fr: field('sf-prize-fr').value },
-      categoryLabel: { en: field('sf-cat-en').value, fr: field('sf-cat-fr').value },
-      checkAs: els.sfCheckAs.value,
+      categories: readCategorySlots(),
       minPlayers: Number(field('sf-min-players').value),
       minRounds: Number(field('sf-min-rounds').value),
       collectEmail: field('sf-email').checked,
@@ -1391,7 +1465,10 @@
   function catLabel(cat) {
     if (cat.id === 'sponsor') {
       const sp = sponsorFor(currentState);
-      return (sp && sText(sp.categoryLabel)) || cat.label || t('sponsored');
+      // Several sponsor categories take turns; this round's is in the state.
+      const current = currentState && (currentState.categories || []).find((c) => c.id === 'sponsor');
+      const own = sp && sp.categories && sp.categories[(current && current.slot) || 0];
+      return (own && sText(own.label)) || (sp && sText(sp.categoryLabel)) || (current && current.label) || cat.label || t('sponsored');
     }
     return categoryLabel(cat);
   }

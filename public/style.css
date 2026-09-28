@@ -1149,6 +1149,9 @@ input[type="range"] {
 .sf-logo { display: flex; align-items: center; gap: 10px; }
 .sf-logo img { width: 52px; height: 52px; border-radius: 12px; object-fit: contain; background: #fff; }
 .sf-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sf-cat { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 12px; }
+#sf-cats { display: flex; flex-direction: column; gap: 10px; }
+.sf-cat-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* ---------- icons (public/icons.js) ---------- */
 

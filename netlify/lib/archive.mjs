@@ -137,3 +137,42 @@ export function claimsCsv(items) {
     items.map((c) => [c.campaignName, iso(c.createdAt), c.code, c.playerName, c.avatar, c.score, c.roomCode, c.email, c.consent ? 'yes' : 'no'])
   );
 }
+
+// Answers given in a sponsor's category (no player names).
+const checked = (v) => (v === true ? 'yes' : v === false ? 'no' : 'not checked');
+
+export function sponsorAnswersCsv(items) {
+  return toCsv(
+    ['id', 'campaign', 'category', 'answered_at', 'room_code', 'round', 'letter', 'answer', 'right_letter', 'found_online', 'points'],
+    items.map((a) => [a.id, a.campaign, a.category, iso(a.at), a.roomCode, a.round, a.letter, a.text, a.valid ? 'yes' : 'no', checked(a.exists), a.points])
+  );
+}
+
+// The same answers grouped: how often each one was given, per campaign and category.
+export function sponsorAnswerSummaryCsv(items) {
+  const simple = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const groups = new Map();
+  const totals = new Map();
+  for (const a of items) {
+    const scope = `${a.campaign}|${a.category}`;
+    totals.set(scope, (totals.get(scope) || 0) + 1);
+    const key = `${scope}|${simple(a.text)}`;
+    let g = groups.get(key);
+    if (!g) groups.set(key, (g = { campaign: a.campaign, category: a.category, scope, spellings: new Map(), count: 0, rooms: new Set(), notFound: 0, first: a.at, last: a.at }));
+    g.count += 1;
+    g.spellings.set(a.text, (g.spellings.get(a.text) || 0) + 1);
+    g.rooms.add(`${a.roomCode}`);
+    if (a.exists === false) g.notFound += 1;
+    g.first = Math.min(g.first, a.at);
+    g.last = Math.max(g.last, a.at);
+  }
+  const rows = [...groups.values()].sort((a, b) => a.scope.localeCompare(b.scope) || b.count - a.count);
+  return toCsv(
+    ['campaign', 'category', 'answer', 'times_given', 'share_percent', 'rooms', 'not_found_online', 'first_given', 'last_given'],
+    rows.map((g) => {
+      const answer = [...g.spellings].sort((a, b) => b[1] - a[1])[0][0];
+      const share = Math.round((1000 * g.count) / totals.get(g.scope)) / 10;
+      return [g.campaign, g.category, answer, g.count, share, g.rooms.size, g.notFound, iso(g.first), iso(g.last)];
+    })
+  );
+}
