@@ -73,6 +73,26 @@
     </div>
 
     <div class="card" id="panel-create" hidden>
+      <!-- Only shown when the admin has a sponsor campaign running -->
+      <div class="field" id="game-type-field" hidden>
+        <span class="field-label" id="game-type-label" data-i18n="gameType">Game type</span>
+        <div class="game-type" role="radiogroup" aria-labelledby="game-type-label">
+          <button type="button" role="radio" data-game-type="fun">
+            <span data-icon="players"></span>
+            <span class="gt-title" data-i18n="gameFun">Just for fun</span>
+            <span class="gt-sub" data-i18n="gameFunSub">Friends only, no prizes</span>
+          </button>
+          <button type="button" role="radio" data-game-type="prizes">
+            <span data-icon="trophy"></span>
+            <span class="gt-title" data-i18n="gamePrizes">Real prizes</span>
+            <span class="gt-sub" data-i18n="gamePrizesSub">Win rewards from a sponsor</span>
+          </button>
+        </div>
+        <div class="sponsor-pick" id="sponsor-pick" hidden>
+          <span class="field-label" id="sponsor-pick-label" data-i18n="pickSponsor">Choose a sponsor</span>
+          <div class="sponsor-options" id="sponsor-options" role="radiogroup" aria-labelledby="sponsor-pick-label"></div>
+        </div>
+      </div>
       <div class="field">
         <span class="field-label" id="rounds-label" data-i18n="numberOfRounds">Number of rounds</span>
         <div class="round-choice" id="round-choice" role="radiogroup" aria-labelledby="rounds-label">
@@ -129,7 +149,7 @@
         <h2 class="admin-h2"><span data-icon="trophy"></span><span data-i18n="sponsorsH">Sponsors</span> <span class="admin-count" id="admin-sponsors-count">0</span></h2>
         <button type="button" class="btn btn-primary btn-sm" id="btn-new-campaign" data-i18n="newCampaign">New campaign</button>
       </div>
-      <p class="admin-note" data-i18n="sponsorsHint">Rooms created while a campaign is live show the sponsor, and the winner of an eligible game gets a prize code.</p>
+      <p class="admin-note" data-i18n="sponsorsHint">While a campaign is live, room creators can choose it for a “Real prizes” game; the winner of an eligible game gets a prize code.</p>
       <div class="admin-feed" id="admin-sponsors"></div>
     </section>
 

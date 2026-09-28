@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // Sponsor campaigns and prizes.
 //
-// A campaign puts a sponsor's brand on every room created while it runs: a
-// "presented by" banner, an optional sponsored category, and a prize for the
-// winner of an eligible game (enough players and rounds). Prize codes are
+// While a campaign runs, room creators can choose it for a "real prizes"
+// game: a "presented by" banner, an optional sponsored category, and a prize
+// for the winner of an eligible game (enough players and rounds). Prize codes are
 // handed out one per winner, one prize per player per campaign, and are only
 // ever sent to the winner's own device.
 //
@@ -109,10 +109,10 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
       return /^[a-z0-9]{8,24}$/.test(String(id || '')) ? getJSON(CAMPAIGN + id) : null;
     },
 
-    // The campaign running right now (the most recently started one).
-    async active() {
+    // Campaigns running right now, for room creators to choose from.
+    async live() {
       const t = now();
-      return (await list()).find((c) => c.active && c.startsAt <= t && t < c.endsAt) || null;
+      return (await list()).filter((c) => c.active && c.startsAt <= t && t < c.endsAt);
     },
 
     // Admin: create or update a campaign; `addCodes` appends prize codes.

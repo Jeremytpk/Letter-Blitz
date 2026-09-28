@@ -425,7 +425,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       }
       const id = playerId || randomId(12);
       const t = now();
-      const campaign = await sponsors.active().catch(() => null);
+      // A "real prizes" game uses the sponsor the creator picked, if it's live.
+      let campaign = null;
+      if (settings.sponsorId) {
+        campaign = (await sponsors.live()).find((c) => c.id === settings.sponsorId) || null;
+        if (!campaign) throw new GameError('sponsor_unavailable', 'That sponsor isn’t available any more. Pick another or play just for fun.');
+      }
       for (let i = 0; i < 20; i++) {
         const code = randomId(4, ROOM_CODE_CHARS);
         const room = {
@@ -594,6 +599,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
 
     // ---- sponsors ----
+
+    // Live campaigns a room creator can pick for a "real prizes" game.
+    async sponsorsAvailable() {
+      const live = await sponsors.live();
+      return { room: null, playerId: null, extra: { sponsors: live.map(publicCampaign) } };
+    },
 
     // Public details of a campaign (logo, prize, rules) for the page.
     async sponsorInfo({ id }) {

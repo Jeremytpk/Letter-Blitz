@@ -65,6 +65,9 @@
     btnLeaveReveal: document.getElementById('btn-leave-reveal'),
     btnShowScores: document.getElementById('btn-show-scores'),
     roundChoice: document.getElementById('round-choice'),
+    gameTypeField: document.getElementById('game-type-field'),
+    sponsorPick: document.getElementById('sponsor-pick'),
+    sponsorOptions: document.getElementById('sponsor-options'),
     lobbySettings: document.getElementById('lobby-settings'),
     roundCounter: document.getElementById('round-counter'),
     btnPlayAgain: document.getElementById('btn-play-again'),
@@ -331,7 +334,10 @@
   els.nameInput.value = localStorage.getItem(LS_NAME) || '';
 
   els.tabJoin.addEventListener('click', () => setTab('join'));
-  els.tabCreate.addEventListener('click', () => setTab('create'));
+  els.tabCreate.addEventListener('click', () => {
+    setTab('create');
+    loadAvailableSponsors(); // refresh the list of sponsors running right now
+  });
 
   function setTab(which) {
     const isJoin = which === 'join';
@@ -384,6 +390,12 @@
   els.btnCreate.addEventListener('click', () => {
     const name = landingName();
     if (!name) return;
+    const prizeGame = gameType === 'prizes' && availableSponsors.length > 0;
+    if (prizeGame && !chosenSponsor) {
+      els.landingError.textContent = t('pickSponsorFirst');
+      els.landingError.hidden = false;
+      return;
+    }
     myRoomCode = null;
     enterRoom('create', {
       name,
@@ -392,9 +404,79 @@
         totalRounds: selectedRounds,
         duration: Number(els.durationInput.value) * 1000,
         categoriesPerRound: Number(els.catcountInput.value),
+        sponsorId: prizeGame ? chosenSponsor : undefined,
       },
     });
   });
+
+  // ---------------- game type: just for fun / real prizes ----------------
+
+  // "Real prizes" only appears when the admin has a sponsor campaign running.
+  let availableSponsors = [];
+  let gameType = 'fun';
+  let chosenSponsor = null;
+
+  async function loadAvailableSponsors() {
+    try {
+      const data = await api('sponsorsAvailable');
+      availableSponsors = data.sponsors || [];
+      for (const sp of availableSponsors) sponsorCache.set(sp.id, sp);
+    } catch {
+      availableSponsors = [];
+    }
+    if (!availableSponsors.some((sp) => sp.id === chosenSponsor)) chosenSponsor = null;
+    if (availableSponsors.length === 1) chosenSponsor = availableSponsors[0].id;
+    if (!availableSponsors.length) gameType = 'fun';
+    renderGameType();
+  }
+
+  function renderGameType() {
+    const any = availableSponsors.length > 0;
+    els.gameTypeField.hidden = !any;
+    for (const btn of els.gameTypeField.querySelectorAll('[data-game-type]')) {
+      btn.setAttribute('aria-checked', String(btn.dataset.gameType === gameType));
+    }
+    const prizes = any && gameType === 'prizes';
+    els.sponsorPick.hidden = !prizes;
+    els.sponsorOptions.innerHTML = '';
+    for (const sp of availableSponsors) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sponsor-option';
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(sp.id === chosenSponsor));
+      btn.style.setProperty('--sponsor-color', sp.color);
+      btn.appendChild(sponsorLogo(sp));
+      const text = document.createElement('span');
+      text.className = 'sponsor-option-text';
+      text.innerHTML = '<span class="sponsor-option-name"></span><span class="sponsor-option-prize"></span><span class="sponsor-option-need"></span>';
+      text.querySelector('.sponsor-option-name').textContent = sp.name;
+      text.querySelector('.sponsor-option-prize').textContent = t('winnerGets', { prize: sText(sp.prize) });
+      text.querySelector('.sponsor-option-need').textContent = t('sponsorNeeds', { players: sp.minPlayers, rounds: sp.minRounds });
+      btn.appendChild(text);
+      btn.addEventListener('click', () => {
+        chosenSponsor = sp.id;
+        if (!els.landingError.hidden) els.landingError.hidden = true;
+        renderGameType();
+      });
+      els.sponsorOptions.appendChild(btn);
+    }
+    // A prize game must be long enough to count: hide round counts below the minimum.
+    const sp = prizes && availableSponsors.find((x) => x.id === chosenSponsor);
+    const minRounds = sp ? sp.minRounds : 1;
+    for (const btn of els.roundChoice.querySelectorAll('[data-rounds]')) {
+      btn.disabled = Number(btn.dataset.rounds) < minRounds;
+    }
+    if (selectedRounds < minRounds) selectRounds(minRounds);
+  }
+
+  for (const btn of els.gameTypeField.querySelectorAll('[data-game-type]')) {
+    btn.addEventListener('click', () => {
+      gameType = btn.dataset.gameType;
+      if (!els.landingError.hidden) els.landingError.hidden = true;
+      renderGameType();
+    });
+  }
 
   async function enterRoom(action, payload) {
     els.btnJoin.disabled = true;
@@ -408,6 +490,10 @@
     } catch (err) {
       const code = payload.code || invitedTo;
       if (err.code === 'admin_login') openAdminLogin();
+      else if (err.code === 'sponsor_unavailable') {
+        showError(err.message);
+        loadAvailableSponsors();
+      }
       else if (err.code === 'room_closed') showRoomClosed('closed', code);
       else if (err.code === 'room_not_found' && invitedTo && code === invitedTo) showRoomClosed('gone', code);
       else showError(err.message);
@@ -2053,6 +2139,7 @@
     if (!els.inviteBanner.hidden) renderInviteBanner();
     renderRoomClosed();
     renderDashboard();
+    renderGameType();
     if (!els.feedbackModal.hidden) setRating(feedbackRating);
   });
   window.i18n.applyStatic();
@@ -2069,6 +2156,8 @@
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }
+  loadAvailableSponsors();
+
   // Count one visit per browser session. The visitor id is random and only
   // used to tell new visitors from returning ones.
   try {

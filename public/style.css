@@ -1097,6 +1097,33 @@ input[type="range"] {
 .check-row { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer; }
 .check-row input { margin-top: 2px; width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
 
+/* create room: game type + sponsor choice */
+.game-type { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.game-type button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  padding: 12px 8px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface-2);
+  color: var(--text); font-family: 'Manrope', sans-serif; cursor: pointer;
+}
+.game-type .icon { width: 30px; height: 30px; }
+.gt-title { font-weight: 800; font-size: 15px; }
+.gt-sub { font-size: 12px; font-weight: 600; color: var(--text-dim); }
+.game-type button[aria-checked='true'] { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.sponsor-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sponsor-options { display: flex; flex-direction: column; gap: 8px; }
+.sponsor-option {
+  --sponsor-color: var(--accent);
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface-2);
+  color: var(--text); font-family: 'Manrope', sans-serif; cursor: pointer;
+}
+.sponsor-option .sponsor-logo { width: 44px; height: 44px; border-radius: 10px; }
+.sponsor-option-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sponsor-option-name { font-weight: 800; font-size: 15px; color: var(--sponsor-color); }
+.sponsor-option-prize { font-weight: 700; font-size: 13px; }
+.sponsor-option-need { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+.sponsor-option[aria-checked='true'] { border-color: var(--sponsor-color); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sponsor-color) 22%, transparent); }
+.round-choice button:disabled { opacity: 0.35; cursor: not-allowed; }
+
 /* admin: campaigns */
 .admin-h2-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .campaign-card { gap: 10px; }
