@@ -88,7 +88,15 @@ Open the URL it prints (usually `http://localhost:8888`).
   `ADMIN_NAME`, `ADMIN_AVATAR`, `ADMIN_PASSWORD`, `ADMIN_PASSCODE`. Their
   values are never stored in this repository (a local copy lives in `.env`,
   which git ignores). See `netlify/lib/admin.mjs`.
-- Rooms are deleted about 12 hours after creation by an hourly scheduled
-  function (`netlify/functions/cleanup.mjs`).
+- Rooms leave the game about 12 hours after creation (hourly scheduled
+  function `netlify/functions/cleanup.mjs`); a summary of each (code, dates,
+  rounds, player names, avatars, scores — not answers) goes to the admin
+  archive. Admin data (statistics and archive) is never deleted
+  automatically — only from the dashboard's "Free up space" section.
+- **Saving admin data locally:** `npm run export-data` signs in with the
+  credentials in `.env` and saves a dated snapshot plus running
+  `all-*.csv` files into `admin-data/` (ignored by git). Add
+  `-- --delete-after` to then free space online (archive and daily history
+  older than today; totals are kept). The dashboard also has CSV downloads.
 - About, Privacy and Terms pages: `public/about.html`, `privacy.html`,
   `terms.html` (English and French).

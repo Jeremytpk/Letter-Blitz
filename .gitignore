@@ -6,3 +6,6 @@ npm-debug.log*
 # Local secrets (admin sign-in) — never commit
 .env
 .env.*
+
+# Admin data exports (player names) — kept on this computer only
+admin-data/

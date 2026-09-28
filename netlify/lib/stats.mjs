@@ -1,14 +1,14 @@
 // ---------------------------------------------------------------------------
 // Site statistics for the admin dashboard.
 //
-// One JSON document ("stats") holds running totals plus per-day counts for
-// the last 60 days. Uniqueness (visitors, players) is tracked with one tiny
-// marker document per id, written only if it doesn't exist yet.
+// One JSON document ("stats") holds running totals plus per-day counts.
+// Nothing is deleted automatically — only the admin can clear old days.
+// Uniqueness (visitors, players) is tracked with one tiny marker document
+// per id, written only if it doesn't exist yet.
 // Counting must never break the game, so every failure is swallowed.
 // ---------------------------------------------------------------------------
 
 const STATS_KEY = 'stats';
-const KEEP_DAYS = 60;
 
 export const EMPTY_STATS = {
   visits: 0,
@@ -42,7 +42,6 @@ export function createStats(store, now = () => Date.now()) {
           today[k] = (today[k] || 0) + v;
         }
         data.days[day] = today;
-        for (const d of Object.keys(data.days).sort().slice(0, -KEEP_DAYS)) delete data.days[d];
         const write = etag
           ? await store.setJSON(STATS_KEY, data, { onlyIfMatch: etag })
           : await store.setJSON(STATS_KEY, data, { onlyIfNew: true });
@@ -65,9 +64,24 @@ export function createStats(store, now = () => Date.now()) {
     }
   }
 
+  // Admin only: drop daily history before 'YYYY-MM-DD' (or all of it).
+  // Running totals are kept.
+  async function deleteDays(before) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { data, etag } = await read();
+      const doomed = Object.keys(data.days).filter((d) => !before || d < before);
+      for (const d of doomed) delete data.days[d];
+      if (!etag) return 0;
+      const write = await store.setJSON(STATS_KEY, data, { onlyIfMatch: etag });
+      if (write.modified) return doomed.length;
+    }
+    throw new Error('Stats busy');
+  }
+
   return {
     bump,
     firstTime,
+    deleteDays,
     async get() {
       return (await read()).data;
     },

@@ -79,6 +79,10 @@
     adminRooms: document.getElementById('admin-rooms'),
     adminRoomsCount: document.getElementById('admin-rooms-count'),
     adminDays: document.getElementById('admin-days'),
+    adminStorage: document.getElementById('admin-storage'),
+    adminDeleteForm: document.getElementById('admin-delete-form'),
+    adminDeleteWhat: document.getElementById('admin-delete-what'),
+    adminDeleteBefore: document.getElementById('admin-delete-before'),
 
     closedTitle: document.getElementById('closed-title'),
     closedText: document.getElementById('closed-text'),
@@ -432,6 +436,49 @@
     if (message) showError(message);
   }
   els.btnAdminRefresh.addEventListener('click', loadDashboard);
+
+  // CSV downloads (built on the server, saved by the browser).
+  for (const btn of document.querySelectorAll('[data-csv]')) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const data = await api('adminCsv', { token: ssGet(SS_ADMIN), dataset: btn.dataset.csv });
+        const url = URL.createObjectURL(new Blob([data.csv], { type: 'text/csv;charset=utf-8' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(t('csvReady', { file: data.filename }));
+      } catch (err) {
+        if (err.code === 'admin_expired') adminSignOut(err.message);
+        else showToast(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Manual deletion — the only way admin data is ever removed.
+  els.adminDeleteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dataset = els.adminDeleteWhat.value;
+    const before = els.adminDeleteBefore.value;
+    const what = els.adminDeleteWhat.selectedOptions[0].textContent;
+    const question = before ? t('confirmDeleteBefore', { what, date: before }) : t('confirmDeleteAll', { what });
+    if (!window.confirm(question)) return;
+    try {
+      const data = await api('adminDelete', { token: ssGet(SS_ADMIN), dataset, before });
+      lastDashboard = data.dashboard;
+      renderDashboard();
+      showToast(t('deletedToast', { n: data.deleted }));
+    } catch (err) {
+      if (err.code === 'admin_expired') adminSignOut(err.message);
+      else showToast(err.message);
+    }
+  });
   els.btnAdminLogout.addEventListener('click', () => adminSignOut());
 
   const fmt = (n) => Number(n || 0).toLocaleString(window.i18n.lang === 'fr' ? 'fr-FR' : 'en-US');
@@ -474,6 +521,11 @@
       div.querySelector('.stat-sub').textContent = tile.sub || '';
       els.adminTiles.appendChild(div);
     }
+
+    els.adminStorage.textContent = t('storageInfo', {
+      rooms: fmt(d.archivedRooms),
+      days: fmt(Object.keys(st.days).length),
+    });
 
     els.adminRoomsCount.textContent = fmt(d.rooms.length);
     els.adminRooms.innerHTML = '';

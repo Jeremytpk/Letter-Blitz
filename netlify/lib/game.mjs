@@ -11,6 +11,7 @@
 import { checkCategories } from './category.mjs';
 import { createStats } from './stats.mjs';
 import { createAdmin, isAdminEntry } from './admin.mjs';
+import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv } from './archive.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -48,8 +49,10 @@ const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 const CHECK_TIME_LIMIT_MS = 7000; // Netlify stops a function after 10s
 
 // `code` lets each player's page show the message in their own language.
-// Delete rooms past their 12-hour lifetime (names, answers and all).
-// Runs hourly (netlify/functions/cleanup.mjs) and whenever the dashboard loads.
+// Rooms past their 12-hour lifetime leave the game: a summary goes to the
+// admin archive (kept until the admin deletes it), then the live room — with
+// its answers — is removed. Runs hourly (netlify/functions/cleanup.mjs) and
+// whenever the dashboard loads.
 export async function deleteExpiredRooms(store, now = Date.now()) {
   const { blobs } = await store.list({ prefix: 'room-' });
   let deleted = 0;
@@ -58,6 +61,7 @@ export async function deleteExpiredRooms(store, now = Date.now()) {
       blobs.slice(i, i + 20).map(async (b) => {
         const r = await store.get(b.key, { type: 'json' });
         if (r && now - r.createdAt <= ROOM_TTL_MS) return;
+        if (r) await archiveRoom(store, r, now);
         await store.delete(b.key);
         deleted += 1;
       })
@@ -486,6 +490,33 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { dashboard: await dashboard() } };
     },
 
+    // CSV exports: 'daily' | 'rooms' | 'players' | 'totals'.
+    async adminCsv({ token, dataset }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      const t = now();
+      const stamp = new Date(t).toISOString().slice(0, 10);
+      let csv;
+      if (dataset === 'daily') csv = dailyCsv(await stats.get());
+      else if (dataset === 'totals') csv = totalsCsv(await stats.get(), await dashboard());
+      else if (dataset === 'rooms' || dataset === 'players') {
+        const rooms = [...(await currentRoomSummaries(t)), ...(await listArchive(store))];
+        csv = dataset === 'rooms' ? roomsCsv(rooms) : playersCsv(rooms);
+      } else throw new GameError('bad_dataset', 'Unknown export.');
+      return { room: null, playerId: null, extra: { csv, filename: `letter-blitz-${dataset}-${stamp}.csv` } };
+    },
+
+    // Manual clean-up: 'archive' (archived rooms) or 'days' (daily history),
+    // optionally only data from before a date ('YYYY-MM-DD').
+    async adminDelete({ token, dataset, before }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      const cutoff = /^\d{4}-\d{2}-\d{2}$/.test(String(before || '')) ? before : null;
+      let deleted;
+      if (dataset === 'archive') deleted = await deleteArchive(store, cutoff);
+      else if (dataset === 'days') deleted = await stats.deleteDays(cutoff);
+      else throw new GameError('bad_dataset', 'Unknown data.');
+      return { room: null, playerId: null, extra: { deleted, dashboard: await dashboard() } };
+    },
+
     // Check a room exists and is open without joining it (used for invite links).
     async peek({ code }) {
       if (!(await load(code))) throw new GameError('room_not_found', 'Room not found. Check the code.');
@@ -547,8 +578,20 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
   };
 
-  // Everything the admin dashboard shows. Also deletes rooms past their
-  // 12-hour lifetime, so old names and answers don't linger.
+  // Rooms still in the game (not yet archived), in archive form.
+  async function currentRoomSummaries(t) {
+    const { blobs } = await store.list({ prefix: 'room-' });
+    const rooms = await Promise.all(blobs.map((b) => store.get(b.key, { type: 'json' })));
+    return rooms
+      .filter(Boolean)
+      .map((r) => {
+        const live = !r.closed && Object.values(r.players).some((p) => isOnline(p, t));
+        return roomSummary(r, r.closed ? 'closed' : live ? 'live' : 'open', t);
+      });
+  }
+
+  // Everything the admin dashboard shows. Also moves rooms past their
+  // 12-hour lifetime into the archive.
   async function dashboard() {
     const t = now();
     await deleteExpiredRooms(store, t).catch((err) => console.warn('Cleanup failed:', err.message));
@@ -585,7 +628,16 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       }
     }
     rooms.sort((a, b) => b.createdAt - a.createdAt);
-    return { generatedAt: t, stats: await stats.get(), roomsOnline: rooms.length, openRooms, playersOnline, rooms };
+    const archived = await store.list({ prefix: 'archive-room-' });
+    return {
+      generatedAt: t,
+      stats: await stats.get(),
+      roomsOnline: rooms.length,
+      openRooms,
+      playersOnline,
+      rooms,
+      archivedRooms: archived.blobs.length,
+    };
   }
 
   return async function handle(action, body, meta = {}) {

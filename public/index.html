@@ -116,6 +116,39 @@
       <div class="admin-rooms" id="admin-rooms"></div>
     </section>
 
+    <section class="admin-section admin-data">
+      <h2 class="admin-h2" data-i18n="dataExports">Data &amp; exports</h2>
+      <p class="admin-note" id="admin-storage"></p>
+      <div class="admin-card">
+        <span class="stat-label" data-i18n="downloadCsv">Download CSV</span>
+        <div class="csv-buttons">
+          <button class="btn btn-secondary btn-sm" data-csv="totals" data-i18n="csvTotals">Totals</button>
+          <button class="btn btn-secondary btn-sm" data-csv="daily" data-i18n="csvDaily">Daily stats</button>
+          <button class="btn btn-secondary btn-sm" data-csv="rooms" data-i18n="csvRooms">Rooms</button>
+          <button class="btn btn-secondary btn-sm" data-csv="players" data-i18n="csvPlayers">Players</button>
+        </div>
+        <p class="admin-note" data-i18n="csvHint">Rooms and Players include live rooms and the archive.</p>
+      </div>
+      <form class="admin-card" id="admin-delete-form">
+        <span class="stat-label" data-i18n="freeSpace">Free up space</span>
+        <p class="admin-note" data-i18n="freeSpaceHint">Nothing is deleted automatically. Download the CSV first, then delete here. Totals are always kept.</p>
+        <div class="delete-row">
+          <label class="field">
+            <span class="field-label" data-i18n="whatToDelete">What</span>
+            <select id="admin-delete-what">
+              <option value="archive" data-i18n="deleteArchive">Archived rooms</option>
+              <option value="days" data-i18n="deleteDays">Daily history</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label" data-i18n="olderThan">Older than (optional)</span>
+            <input type="date" id="admin-delete-before" />
+          </label>
+          <button type="submit" class="btn btn-danger-outline btn-sm" data-i18n="deleteBtn">Delete</button>
+        </div>
+      </form>
+    </section>
+
     <section class="admin-section">
       <h2 class="admin-h2" data-i18n="last14Days">Last 14 days</h2>
       <div class="admin-table-wrap">
