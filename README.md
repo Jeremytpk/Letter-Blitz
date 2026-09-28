@@ -31,8 +31,9 @@ Open the URL it prints (usually `http://localhost:8888`).
 
 ## How a game works
 
-1. One player creates a room (sets round length & categories per round) and
-   gets a 4-character room code.
+1. One player creates a room &mdash; choosing the number of rounds (1, 3, 5, 7
+   or 11), round length and categories per round &mdash; and gets a
+   4-character room code.
 2. Everyone else joins with that code and a name &mdash; own phone, own screen.
 3. The host starts the game: everyone gets the same random letter and
    category list, and a synchronized countdown begins.
@@ -46,7 +47,9 @@ Open the URL it prints (usually `http://localhost:8888`).
 5. After the answers, a separate **Scores** screen shows the round points and
    totals; the round's top scorer picks the next letter there. The moment they pick it, the
    next round starts for everyone at the same time.
-6. Total scores carry across rounds &mdash; play as many rounds as you like.
+6. Total scores carry across rounds. After the last round a final-standings
+   screen shows the game winner, and the host can tap **Play again** to reset
+   scores and go back to the lobby with the same players.
 
 ## Notes
 

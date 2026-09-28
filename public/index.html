@@ -59,6 +59,16 @@
     </div>
 
     <div class="card" id="panel-create" hidden>
+      <div class="field">
+        <span class="field-label" id="rounds-label" data-i18n="numberOfRounds">Number of rounds</span>
+        <div class="round-choice" id="round-choice" role="radiogroup" aria-labelledby="rounds-label">
+          <button type="button" role="radio" data-rounds="1">1</button>
+          <button type="button" role="radio" data-rounds="3">3</button>
+          <button type="button" role="radio" data-rounds="5">5</button>
+          <button type="button" role="radio" data-rounds="7">7</button>
+          <button type="button" role="radio" data-rounds="11">11</button>
+        </div>
+      </div>
       <label class="field">
         <span class="field-label"><span data-i18n="roundLength">Round length:</span> <span id="duration-out">90</span><span data-i18n="seconds">s</span></span>
         <input id="duration-input" type="range" min="20" max="180" step="10" value="90" />
@@ -83,6 +93,7 @@
       </div>
     </header>
 
+    <p class="room-settings" id="lobby-settings"></p>
     <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
 
     <ul class="player-list" id="lobby-players"></ul>
@@ -106,6 +117,7 @@
     <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
 
     <div class="letter-hero">
+      <div class="round-counter" id="round-counter"></div>
       <div class="letter-hero-label" data-i18n="yourLetter">Your letter</div>
       <div class="letter-hero-letter" id="round-letter">L</div>
     </div>
@@ -159,6 +171,7 @@
       <div class="letter-grid" id="letter-grid"></div>
     </div>
     <p class="waiting-note" id="reveal-wait-note" hidden></p>
+    <button class="btn btn-primary" id="btn-play-again" hidden data-i18n="playAgain">Play again</button>
 
     <button class="btn btn-secondary" id="btn-show-answers" data-i18n="backToAnswers">&larr; Back to answers</button>
   </section>

@@ -228,6 +228,45 @@ input[type="range"] {
 
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 
+.round-choice { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.round-choice button {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 12px 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.round-choice button[aria-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.room-settings {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  align-self: center;
+}
+
+.round-counter {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 .landing-top { display: flex; justify-content: flex-end; }
 
 .lang-switch {

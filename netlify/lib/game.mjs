@@ -92,6 +92,14 @@ function clampDuration(ms) {
   return Math.min(180000, Math.max(20000, Math.round(n / 1000) * 1000));
 }
 
+export const ROUND_CHOICES = [1, 3, 5, 7, 11];
+const DEFAULT_ROUNDS = 5;
+
+function clampTotalRounds(n) {
+  const r = Number(n);
+  return ROUND_CHOICES.includes(r) ? r : DEFAULT_ROUNDS;
+}
+
 function clampCategoryCount(n) {
   const c = Number(n) || 9;
   return Math.min(12, Math.max(4, Math.round(c)));
@@ -104,6 +112,11 @@ function cleanName(name) {
 }
 
 const roomKey = (code) => `room-${code}`;
+
+// Anyone pressing a button is clearly still here.
+function touch(room, playerId, now) {
+  if (room.players[playerId]) room.players[playerId].lastSeen = now;
+}
 
 function isOnline(p, now) {
   return now - p.lastSeen < ONLINE_MS;
@@ -174,7 +187,9 @@ function scoreRound(room, found) {
 
   room.phase = 'reveal';
   room.checkingSince = null;
-  room.reveal = { round: room.round, letter: room.letter, perCategory, roundScores, winnerId };
+  // After the last round the game is over: no next letter, just final standings.
+  const final = room.round >= (room.totalRounds || DEFAULT_ROUNDS);
+  room.reveal = { round: room.round, letter: room.letter, perCategory, roundScores, winnerId, final };
 }
 
 // What every player is allowed to see.
@@ -197,6 +212,7 @@ function publicState(room, playerId, now) {
     startedAt: room.startedAt,
     duration: room.duration,
     categoriesPerRound: room.categoriesPerRound,
+    totalRounds: room.totalRounds || DEFAULT_ROUNDS,
     hostId: effectiveHostId(room, now),
     players: players.map((p) => ({
       id: p.id,
@@ -288,6 +304,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           startedAt: null,
           duration: clampDuration(settings.duration),
           categoriesPerRound: clampCategoryCount(settings.categoriesPerRound),
+          totalRounds: clampTotalRounds(settings.totalRounds),
           players: { [id]: { id, name: n, totalScore: 0, joinedAt: t, lastSeen: t } },
           answers: {},
           reveal: null,
@@ -363,6 +380,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     async start({ code, playerId }) {
       const room = await mutate(code, (r) => {
         const t = now();
+        touch(r, playerId, t);
         if (playerId !== effectiveHostId(r, t)) throw new GameError('host_only', 'Only the host can start the game.');
         if (r.phase !== 'lobby') return false;
         const online = Object.values(r.players).filter((p) => isOnline(p, t));
@@ -378,11 +396,32 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       const room = await mutate(code, (r) => {
         const t = now();
         if (r.phase !== 'reveal') return false;
+        touch(r, playerId, t);
+        if (r.reveal.final) throw new GameError('game_over', 'The game is over.');
         const winner = r.players[r.reveal.winnerId];
         const winnerAway = !winner || !isOnline(winner, t);
         const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
         if (!allowed) throw new GameError('winner_only', 'Only the round winner picks the next letter.');
         startRound(r, L, t);
+      });
+      return { room, playerId };
+    },
+
+    // After the final round the host can start over with the same players.
+    async playAgain({ code, playerId }) {
+      const room = await mutate(code, (r) => {
+        const t = now();
+        touch(r, playerId, t);
+        if (playerId !== effectiveHostId(r, t)) throw new GameError('host_only_restart', 'Only the host can start a new game.');
+        if (r.phase !== 'reveal' || !r.reveal.final) return false;
+        r.phase = 'lobby';
+        r.round = 0;
+        r.letter = null;
+        r.categories = [];
+        r.startedAt = null;
+        r.answers = {};
+        r.reveal = null;
+        for (const p of Object.values(r.players)) p.totalScore = 0;
       });
       return { room, playerId };
     },

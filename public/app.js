@@ -48,6 +48,10 @@
     revealCode: document.getElementById('reveal-code'),
     btnLeaveReveal: document.getElementById('btn-leave-reveal'),
     btnShowScores: document.getElementById('btn-show-scores'),
+    roundChoice: document.getElementById('round-choice'),
+    lobbySettings: document.getElementById('lobby-settings'),
+    roundCounter: document.getElementById('round-counter'),
+    btnPlayAgain: document.getElementById('btn-play-again'),
 
     scoresCode: document.getElementById('scores-code'),
     scoresRound: document.getElementById('scores-round'),
@@ -80,6 +84,7 @@
   let finalSentRound = 0;
   // After a round: 'answers' first, then the separate 'scores' screen.
   let revealScreen = 'answers';
+  let selectedRounds = 5;
   let revealRound = 0;
   const answerInputs = new Map(); // catId -> input element
 
@@ -249,6 +254,7 @@
     enterRoom('create', {
       name,
       settings: {
+        totalRounds: selectedRounds,
         duration: Number(els.durationInput.value) * 1000,
         categoriesPerRound: Number(els.catcountInput.value),
       },
@@ -295,6 +301,21 @@
 
   // Leave for good: remove the player from the room and erase everything
   // saved on this device (name, room, player id).
+  function selectRounds(n) {
+    selectedRounds = n;
+    for (const btn of els.roundChoice.querySelectorAll('[data-rounds]')) {
+      btn.setAttribute('aria-checked', String(Number(btn.dataset.rounds) === n));
+    }
+  }
+  for (const btn of els.roundChoice.querySelectorAll('[data-rounds]')) {
+    btn.addEventListener('click', () => selectRounds(Number(btn.dataset.rounds)));
+  }
+  selectRounds(selectedRounds);
+
+  function roundsText(n) {
+    return n === 1 ? t('roundsOne') : t('roundsMany', { n });
+  }
+
   function leaveRoom() {
     closeLeaveModal();
     api('leave').catch(() => {});
@@ -330,6 +351,14 @@
     if (currentState) render(currentState);
     window.scrollTo(0, 0);
   });
+  els.btnPlayAgain.addEventListener('click', () => {
+    els.btnPlayAgain.disabled = true;
+    api('playAgain')
+      .catch((err) => showToast(err.message))
+      .finally(() => {
+        els.btnPlayAgain.disabled = false;
+      });
+  });
   els.btnShowAnswers.addEventListener('click', () => {
     revealScreen = 'answers';
     if (currentState) render(currentState);
@@ -340,6 +369,10 @@
 
   function render(state, prevPhase) {
     if (state.phase === 'lobby') {
+      // A new game (e.g. after "Play again") restarts at round 1.
+      renderedRound = 0;
+      revealRound = 0;
+      finalSentRound = 0;
       renderLobby(state);
       showView('lobby');
     } else if (state.phase === 'playing' || state.phase === 'checking') {
@@ -359,6 +392,11 @@
 
   function renderLobby(state) {
     els.lobbyCode.textContent = state.code;
+    els.lobbySettings.textContent = t('lobbySettings', {
+      rounds: roundsText(state.totalRounds),
+      seconds: Math.round(state.duration / 1000),
+      cats: state.categoriesPerRound,
+    });
     els.lobbyPlayers.innerHTML = '';
     const sorted = [...state.players].sort((a, b) => a.name.localeCompare(b.name));
     for (const p of sorted) {
@@ -385,6 +423,7 @@
 
   function renderPlaying(state) {
     els.playingCode.textContent = state.code;
+    els.roundCounter.textContent = t('roundOf', { round: state.round, total: state.totalRounds });
     els.roundLetter.textContent = state.letter || '?';
 
     // During the 3-2-1 countdown the letter is still hidden.
@@ -501,6 +540,7 @@
     els.revealBanner.textContent = winner
       ? t('roundWon', { name: winner.name, round: state.round, points: reveal.roundScores[winner.id], mine: roundScore })
       : t('roundResults', { round: state.round });
+    els.btnShowScores.textContent = reveal.final ? t('seeFinalScores') : t('seeScores');
 
     els.revealCategories.innerHTML = '';
     for (const cat of reveal.perCategory) {
@@ -560,15 +600,28 @@
     const winner = playersById.get(reveal.winnerId);
     // The winner picks the next letter; if they've left, the host does.
     const winnerAway = !winner || !winner.connected;
-    const amWinner = reveal.winnerId === myPlayerId || (winnerAway && state.hostId === myPlayerId);
+    const amWinner = !reveal.final && (reveal.winnerId === myPlayerId || (winnerAway && state.hostId === myPlayerId));
 
-    els.scoresRound.textContent = t('roundLetter', { round: state.round, letter: reveal.letter });
-    const winPoints = winner ? reveal.roundScores[winner.id] : 0;
-    els.scoresWinner.textContent = !winner
-      ? t('roundOver')
-      : winner.id === myPlayerId
-        ? t('youWonWith', { points: winPoints })
-        : t('playerWonWith', { name: winner.name, points: winPoints });
+    if (reveal.final) {
+      // Game over: the winner is whoever has the most points overall.
+      els.scoresRound.textContent = t('finalResults', { rounds: roundsText(state.totalRounds) });
+      const best = Math.max(...state.players.map((p) => p.totalScore));
+      const leaders = state.players.filter((p) => p.totalScore === best);
+      els.scoresWinner.textContent =
+        leaders.length > 1
+          ? t('tieGame', { names: leaders.map((p) => p.name).join(t('and')) })
+          : leaders[0].id === myPlayerId
+            ? t('youWinGame')
+            : t('playerWinsGame', { name: leaders[0].name });
+    } else {
+      els.scoresRound.textContent = t('roundLetter', { round: state.round, total: state.totalRounds, letter: reveal.letter });
+      const winPoints = winner ? reveal.roundScores[winner.id] : 0;
+      els.scoresWinner.textContent = !winner
+        ? t('roundOver')
+        : winner.id === myPlayerId
+          ? t('youWonWith', { points: winPoints })
+          : t('playerWonWith', { name: winner.name, points: winPoints });
+    }
 
     els.leaderboardList.innerHTML = '';
     const ranked = [...state.players].sort((a, b) => b.totalScore - a.totalScore);
@@ -589,7 +642,12 @@
 
     els.letterPicker.hidden = !amWinner;
     els.revealWaitNote.hidden = amWinner;
-    if (!amWinner && winner) {
+    const amHost = state.hostId === myPlayerId;
+    els.btnPlayAgain.hidden = !(reveal.final && amHost);
+    if (reveal.final) {
+      els.revealWaitNote.textContent = t('waitingForRestart');
+      els.revealWaitNote.hidden = amHost;
+    } else if (!amWinner && winner) {
       els.revealWaitNote.textContent = t('waitingForPick', { name: winner.name });
       els.revealWaitNote.hidden = false;
     }
