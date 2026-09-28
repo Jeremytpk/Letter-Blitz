@@ -59,7 +59,18 @@
     btnLeaveScores: document.getElementById('btn-leave-scores'),
     btnShowAnswers: document.getElementById('btn-show-answers'),
 
+    playBar: document.getElementById('play-bar'),
+    barLetter: document.getElementById('bar-letter'),
+
     leaveModal: document.getElementById('leave-modal'),
+    leaveTitle: document.getElementById('leave-title'),
+    leaveDesc: document.getElementById('leave-desc'),
+    leaveActions: document.getElementById('leave-actions'),
+    hostLeave: document.getElementById('host-leave'),
+    crownList: document.getElementById('crown-list'),
+    btnGiveCrown: document.getElementById('btn-give-crown'),
+    btnCloseRoom: document.getElementById('btn-close-room'),
+    btnHostStay: document.getElementById('btn-host-stay'),
     btnLeaveCancel: document.getElementById('btn-leave-cancel'),
     btnLeaveConfirm: document.getElementById('btn-leave-confirm'),
     revealBanner: document.getElementById('reveal-banner'),
@@ -112,7 +123,7 @@
     if (!res.ok) {
       const code = data.errorCode;
       const err = new Error(code ? t(`err_${code}`) : t('somethingWrong'));
-      err.fatal = code === 'room_not_found' || code === 'not_in_room';
+      err.fatal = code === 'room_not_found' || code === 'not_in_room' || code === 'room_closed';
       throw err;
     }
     if (data.playerId) {
@@ -290,17 +301,6 @@
     if (message) showError(message);
   }
 
-  function askToLeave() {
-    els.leaveModal.hidden = false;
-    els.btnLeaveCancel.focus();
-  }
-
-  function closeLeaveModal() {
-    els.leaveModal.hidden = true;
-  }
-
-  // Leave for good: remove the player from the room and erase everything
-  // saved on this device (name, room, player id).
   function selectRounds(n) {
     selectedRounds = n;
     for (const btn of els.roundChoice.querySelectorAll('[data-rounds]')) {
@@ -316,19 +316,80 @@
     return n === 1 ? t('roundsOne') : t('roundsMany', { n });
   }
 
-  function leaveRoom() {
+  let crownPick = null; // player chosen to become the new room head
+
+  function leaveMode() {
+    const state = currentState;
+    if (!state || state.hostId !== myPlayerId) return 'player';
+    return state.players.some((p) => p.id !== myPlayerId) ? 'host' : 'alone';
+  }
+
+  // Fill the leave dialog for this player: a regular player just confirms;
+  // the room head picks a new head or closes the room.
+  function renderLeaveModal() {
+    const mode = leaveMode();
+    els.leaveTitle.textContent = mode === 'host' ? t('hostLeaveTitle') : t('leaveTitle');
+    els.leaveDesc.textContent = mode === 'host' ? t('hostLeaveText') : mode === 'alone' ? t('aloneLeaveText') : t('leaveText');
+    els.hostLeave.hidden = mode !== 'host';
+    els.leaveActions.hidden = mode === 'host';
+    if (mode !== 'host') return;
+
+    const others = currentState.players
+      .filter((p) => p.id !== myPlayerId)
+      .sort((a, b) => Number(b.connected) - Number(a.connected));
+    if (!others.some((p) => p.id === crownPick)) crownPick = null;
+    els.crownList.innerHTML = '';
+    for (const p of others) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(p.id === crownPick));
+      btn.className = 'crown-option' + (p.connected ? '' : ' is-offline');
+      btn.innerHTML = `<span class="player-avatar"></span><span class="crown-name"></span><span class="crown-mark">👑</span>`;
+      btn.querySelector('.player-avatar').textContent = initials(p.name);
+      btn.querySelector('.crown-name').textContent = p.name + (p.connected ? '' : ` (${t('offline')})`);
+      btn.addEventListener('click', () => {
+        crownPick = p.id;
+        renderLeaveModal();
+      });
+      els.crownList.appendChild(btn);
+    }
+    els.btnGiveCrown.disabled = !crownPick;
+  }
+
+  function askToLeave() {
+    crownPick = null;
+    renderLeaveModal();
+    els.leaveModal.hidden = false;
+    (leaveMode() === 'host' ? els.btnHostStay : els.btnLeaveCancel).focus();
+  }
+
+  function closeLeaveModal() {
+    els.leaveModal.hidden = true;
+  }
+
+  // Leave for good: remove the player from the room and erase everything
+  // saved on this device (name, room, player id). The room head passes
+  // { newHostId } or { closeRoom: true }.
+  function leaveRoom(options = {}) {
     closeLeaveModal();
-    api('leave').catch(() => {});
+    api('leave', options).catch(() => {});
     for (const key of [LS_NAME, LS_CODE, LS_PLAYER_ID]) localStorage.removeItem(key);
     myPlayerId = null;
     els.nameInput.value = '';
     els.codeInput.value = '';
     resetToLanding();
-    showToast(t('leftToast'));
+    showToast(options.closeRoom ? t('closedToast') : t('leftToast'));
   }
 
   els.btnLeaveCancel.addEventListener('click', closeLeaveModal);
-  els.btnLeaveConfirm.addEventListener('click', leaveRoom);
+  els.btnHostStay.addEventListener('click', closeLeaveModal);
+  // A room head who is alone closes the room when leaving.
+  els.btnLeaveConfirm.addEventListener('click', () => leaveRoom(leaveMode() === 'alone' ? { closeRoom: true } : {}));
+  els.btnGiveCrown.addEventListener('click', () => {
+    if (crownPick) leaveRoom({ newHostId: crownPick });
+  });
+  els.btnCloseRoom.addEventListener('click', () => leaveRoom({ closeRoom: true }));
   els.leaveModal.addEventListener('click', (e) => {
     if (e.target === els.leaveModal) closeLeaveModal();
   });
@@ -368,6 +429,7 @@
   // ---------------- render ----------------
 
   function render(state, prevPhase) {
+    if (!els.leaveModal.hidden) renderLeaveModal();
     if (state.phase === 'lobby') {
       // A new game (e.g. after "Play again") restarts at round 1.
       renderedRound = 0;
@@ -425,6 +487,7 @@
     els.playingCode.textContent = state.code;
     els.roundCounter.textContent = t('roundOf', { round: state.round, total: state.totalRounds });
     els.roundLetter.textContent = state.letter || '?';
+    els.barLetter.textContent = state.letter || '';
 
     // During the 3-2-1 countdown the letter is still hidden.
     if (!state.letter) {
@@ -470,6 +533,7 @@
 
   function renderChecking() {
     cancelAnimationFrame(timerRAF);
+    els.playBar.classList.remove('is-warning', 'is-danger');
     els.timerText.textContent = t('checking');
     els.timerFill.style.width = '0%';
     for (const input of answerInputs.values()) input.disabled = true;
@@ -497,6 +561,7 @@
     function tick() {
       const now = serverNow();
       if (now < startedAt) {
+        els.playBar.classList.remove('is-warning', 'is-danger');
         els.timerText.textContent = `${Math.ceil((startedAt - now) / 1000)}…`;
         els.roundLetter.textContent = String(Math.ceil((startedAt - now) / 1000));
         els.timerFill.style.width = '100%';
@@ -510,6 +575,11 @@
         return;
       }
       const remaining = Math.max(0, startedAt + duration - now);
+      // Amber when time is getting low, red when it's nearly up.
+      const warnAt = Math.min(30000, duration / 3);
+      const dangerAt = Math.min(10000, duration * 0.15);
+      els.playBar.classList.toggle('is-danger', remaining > 0 && remaining <= dangerAt);
+      els.playBar.classList.toggle('is-warning', remaining > dangerAt && remaining <= warnAt);
       const secs = Math.ceil(remaining / 1000);
       const m = Math.floor(secs / 60);
       const s = secs % 60;

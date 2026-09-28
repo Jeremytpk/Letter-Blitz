@@ -65,6 +65,10 @@ Open the URL it prints (usually `http://localhost:8888`).
   EN / FR switch (saved on their device; first visit follows the phone's
   language). All text is in `public/i18n.js`; the server sends error codes
   that each page translates.
+- When the room head (👑) leaves, they choose to give the crown to another
+  player or close the room for everyone.
+- During a round the timer stays pinned to the top of the screen and turns
+  amber, then red, as time runs out.
 - Each phone remembers its player name and room, so a refresh or lost
   connection rejoins automatically. Tapping **Leave** (after a confirmation)
   removes the player and erases that saved data.

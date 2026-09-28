@@ -106,15 +106,20 @@
 
   <!-- ===================== PLAYING ===================== -->
   <section class="view" id="view-playing" hidden>
-    <header class="topbar">
-      <div class="room-code small" id="playing-code">----</div>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-        <div class="timer" id="timer-text">1:00</div>
-      </div>
-    </header>
-
-    <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+    <!-- Stays pinned to the top while scrolling through the categories -->
+    <div class="play-bar" id="play-bar">
+      <header class="topbar">
+        <div class="play-bar-left">
+          <div class="room-code small" id="playing-code">----</div>
+          <div class="bar-letter" id="bar-letter" aria-hidden="true"></div>
+        </div>
+        <div class="topbar-actions">
+          <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+          <div class="timer" id="timer-text" role="timer" aria-live="off">1:00</div>
+        </div>
+      </header>
+      <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+    </div>
 
     <div class="letter-hero">
       <div class="round-counter" id="round-counter"></div>
@@ -182,14 +187,23 @@
 
 <div class="modal-backdrop" id="leave-modal" hidden>
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="leave-title" aria-describedby="leave-desc">
-    <h2 class="modal-title" id="leave-title" data-i18n="leaveTitle">Leave this room?</h2>
-    <p class="modal-text" id="leave-desc" data-i18n="leaveText">
-      This will erase all your data on this device &mdash; your username, your room and your scores.
-      You won't be able to come back to this game.
-    </p>
-    <div class="modal-actions">
+    <h2 class="modal-title" id="leave-title">Leave this room?</h2>
+    <p class="modal-text" id="leave-desc"></p>
+
+    <!-- Regular player (or a host who is alone in the room) -->
+    <div class="modal-actions" id="leave-actions">
       <button class="btn btn-secondary" id="btn-leave-cancel" data-i18n="stay">Stay</button>
       <button class="btn btn-danger" id="btn-leave-confirm" data-i18n="leaveAndErase">Leave &amp; erase</button>
+    </div>
+
+    <!-- Room head: hand over the crown or close the room -->
+    <div class="host-leave" id="host-leave" hidden>
+      <p class="modal-subtitle" id="crown-label" data-i18n="giveCrownTo">Give the crown 👑 to</p>
+      <div class="crown-list" id="crown-list" role="radiogroup" aria-labelledby="crown-label"></div>
+      <button class="btn btn-primary" id="btn-give-crown" disabled data-i18n="giveCrownAndLeave">Give crown &amp; leave</button>
+      <div class="modal-or"><span data-i18n="or">or</span></div>
+      <button class="btn btn-danger-outline" id="btn-close-room" data-i18n="closeRoom">Close the room for everyone</button>
+      <button class="btn btn-secondary" id="btn-host-stay" data-i18n="stay">Stay</button>
     </div>
   </div>
 </div>

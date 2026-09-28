@@ -231,6 +231,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     const res = await store.getWithMetadata(roomKey(code), { type: 'json', consistency: 'strong' });
     if (!res || !res.data) return null;
     if (now() - res.data.createdAt > ROOM_TTL_MS) return null;
+    if (res.data.closed) throw new GameError('room_closed', 'The host closed the room.');
     return { room: res.data, etag: res.etag };
   }
 
@@ -426,12 +427,27 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room, playerId };
     },
 
-    async leave({ code, playerId }) {
+    // The room head (host) leaving chooses: close the room for everyone, or
+    // hand the crown to another player. Anyone else just leaves.
+    async leave({ code, playerId, closeRoom, newHostId }) {
       await mutate(code, (r) => {
         if (!r.players[playerId]) return false;
+        const isHost = playerId === effectiveHostId(r, now());
+        if (isHost && closeRoom) {
+          r.closed = true;
+          return;
+        }
+        if (isHost && newHostId) {
+          if (newHostId === playerId || !r.players[newHostId]) {
+            throw new GameError('invalid_new_host', 'Pick a player who is still in the room.');
+          }
+          r.hostId = newHostId;
+        }
         delete r.players[playerId];
         delete r.answers[playerId];
-      }).catch(() => {});
+      }).catch((err) => {
+        if (err instanceof GameError && err.code === 'invalid_new_host') throw err;
+      });
       return { room: null, playerId: null };
     },
   };

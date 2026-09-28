@@ -72,6 +72,19 @@
       stay: 'Stay',
       leaveAndErase: 'Leave & erase',
       leftToast: 'You left the room. Your data was erased.',
+      hostLeaveTitle: 'You’re the room head 👑',
+      hostLeaveText:
+        'Before you leave, give the crown to another player or close the room. Leaving erases your data on this device — your username, your room and your scores.',
+      aloneLeaveText:
+        'You’re the only player, so leaving will close the room. It also erases your data on this device — your username, your room and your scores.',
+      giveCrownTo: 'Give the crown 👑 to',
+      giveCrownAndLeave: 'Give crown & leave',
+      or: 'or',
+      closeRoom: 'Close the room for everyone',
+      offline: 'offline',
+      closedToast: 'You closed the room.',
+      err_room_closed: 'The host closed the room.',
+      err_invalid_new_host: 'Pick a player who is still in the room.',
 
       enterName: 'Enter a name first.',
       codeFormat: 'Room codes are 4 letters/numbers.',
@@ -184,6 +197,19 @@
       stay: 'Rester',
       leaveAndErase: 'Quitter et effacer',
       leftToast: 'Vous avez quitté la salle. Vos données ont été effacées.',
+      hostLeaveTitle: 'Vous êtes le chef de la salle 👑',
+      hostLeaveText:
+        'Avant de partir, donnez la couronne à un autre joueur ou fermez la salle. Quitter efface vos données sur cet appareil — votre nom, votre salle et vos scores.',
+      aloneLeaveText:
+        'Vous êtes le seul joueur : quitter fermera la salle. Vos données sur cet appareil seront aussi effacées — votre nom, votre salle et vos scores.',
+      giveCrownTo: 'Donner la couronne 👑 à',
+      giveCrownAndLeave: 'Donner la couronne et quitter',
+      or: 'ou',
+      closeRoom: 'Fermer la salle pour tout le monde',
+      offline: 'hors ligne',
+      closedToast: 'Vous avez fermé la salle.',
+      err_room_closed: 'L’hôte a fermé la salle.',
+      err_invalid_new_host: 'Choisissez un joueur encore dans la salle.',
 
       enterName: 'Entrez d’abord un nom.',
       codeFormat: 'Le code de salle comporte 4 lettres/chiffres.',
