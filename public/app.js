@@ -587,6 +587,24 @@
     if (serverNow() >= state.startedAt + state.duration) renderChecking();
   }
 
+  // ---------------- timer bar pinning ----------------
+
+  // Reserve the bar's height in the page, and keep the bar at the top of what's
+  // actually visible — on phones the keyboard scrolls the visible area inside
+  // the page, which would otherwise carry a fixed bar off screen.
+  function syncPlayBar() {
+    document.documentElement.style.setProperty('--play-bar-height', `${els.playBar.offsetHeight}px`);
+    const vv = window.visualViewport;
+    const offset = vv ? Math.max(0, vv.offsetTop) : 0;
+    els.playBar.style.transform = offset > 0.5 ? `translateY(${offset}px)` : '';
+  }
+  if (window.ResizeObserver) new ResizeObserver(syncPlayBar).observe(els.playBar);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncPlayBar);
+    window.visualViewport.addEventListener('scroll', syncPlayBar);
+  }
+  window.addEventListener('scroll', syncPlayBar, { passive: true });
+
   // ---------------- player list (timer bar) ----------------
 
   function closePlayersPanel() {
