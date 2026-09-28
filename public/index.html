@@ -104,7 +104,7 @@
 
     <p class="room-settings" id="lobby-settings"></p>
     <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
-    <button class="btn btn-secondary invite-btn" id="btn-invite"><span aria-hidden="true">🔗</span> <span data-i18n="inviteFriends">Invite friends with a link</span></button>
+    <button class="btn btn-secondary invite-btn" id="btn-invite"><span data-icon="link"></span><span data-i18n="inviteFriends">Invite friends with a link</span></button>
 
     <ul class="player-list" id="lobby-players"></ul>
 
@@ -127,7 +127,7 @@
           <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
           <div class="timer" id="timer-text" role="timer" aria-live="off">1:00</div>
           <button type="button" class="players-pill" id="players-pill" aria-expanded="false" aria-controls="players-panel" hidden>
-            <span aria-hidden="true">👥</span><span id="players-count">0</span>
+            <span data-icon="players"></span><span id="players-count">0</span>
           </button>
         </div>
       </header>
@@ -174,7 +174,7 @@
     <div class="reveal-categories" id="reveal-categories"></div>
 
     <div class="sticky-action">
-      <button class="btn btn-primary" id="btn-show-scores" data-i18n="seeScores">See scores &rarr;</button>
+      <button class="btn btn-primary" id="btn-show-scores"><span id="show-scores-label" data-i18n="seeScores">See scores</span><span data-icon="arrow-right"></span></button>
     </div>
   </section>
 
@@ -205,7 +205,7 @@
     <p class="waiting-note" id="reveal-wait-note" hidden></p>
     <button class="btn btn-primary" id="btn-play-again" hidden data-i18n="playAgain">Play again</button>
 
-    <button class="btn btn-secondary" id="btn-show-answers" data-i18n="backToAnswers">&larr; Back to answers</button>
+    <button class="btn btn-secondary" id="btn-show-answers"><span data-icon="arrow-left"></span><span data-i18n="backToAnswers">Back to answers</span></button>
   </section>
 
 </div>
@@ -225,7 +225,7 @@
 
     <!-- Room head: hand over the crown or close the room -->
     <div class="host-leave" id="host-leave" hidden>
-      <p class="modal-subtitle" id="crown-label" data-i18n="giveCrownTo">Give the crown 👑 to</p>
+      <p class="modal-subtitle" id="crown-label"><span data-i18n="giveCrownTo">Give the crown to</span><span data-icon="crown"></span></p>
       <div class="crown-list" id="crown-list" role="radiogroup" aria-labelledby="crown-label"></div>
       <button class="btn btn-primary" id="btn-give-crown" disabled data-i18n="giveCrownAndLeave">Give crown &amp; leave</button>
       <div class="modal-or"><span data-i18n="or">or</span></div>
@@ -236,6 +236,7 @@
 </div>
 
 <script src="/avatars.js"></script>
+<script src="/icons.js"></script>
 <script src="/i18n.js"></script>
 <script src="/app.js"></script>
 </body>

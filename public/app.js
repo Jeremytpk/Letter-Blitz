@@ -226,6 +226,12 @@
     answerTimer = setTimeout(sendAnswers, 600);
   }
 
+  // Put an icon (public/icons.js) before a line of text.
+  function setIconText(el, iconName, text) {
+    el.innerHTML = `${iconName ? icon(iconName) : ''}<span></span>`;
+    el.querySelector('span').textContent = text;
+  }
+
   // Optional avatar id shows that player's avatar next to the message.
   function showToast(message, avatarId) {
     els.toast.innerHTML = `${avatarId ? avatarHTML(avatarId) : ''}<span></span>`;
@@ -372,7 +378,8 @@
   // the room head picks a new head or closes the room.
   function renderLeaveModal() {
     const mode = leaveMode();
-    els.leaveTitle.textContent = mode === 'host' ? t('hostLeaveTitle') : t('leaveTitle');
+    setIconText(els.leaveTitle, null, mode === 'host' ? t('hostLeaveTitle') : t('leaveTitle'));
+    if (mode === 'host') els.leaveTitle.insertAdjacentHTML('beforeend', icon('crown'));
     els.leaveDesc.textContent = mode === 'host' ? t('hostLeaveText') : mode === 'alone' ? t('aloneLeaveText') : t('leaveText');
     els.hostLeave.hidden = mode !== 'host';
     els.leaveActions.hidden = mode === 'host';
@@ -389,7 +396,7 @@
       btn.setAttribute('role', 'radio');
       btn.setAttribute('aria-checked', String(p.id === crownPick));
       btn.className = 'crown-option' + (p.connected ? '' : ' is-offline');
-      btn.innerHTML = `${avatarHTML(p.avatar, p.name)}<span class="crown-name"></span><span class="crown-mark">👑</span>`;
+      btn.innerHTML = `${avatarHTML(p.avatar, p.name)}<span class="crown-name"></span><span class="crown-mark">${icon('crown')}</span>`;
       btn.querySelector('.crown-name').textContent = p.name + (p.connected ? '' : ` (${t('offline')})`);
       btn.addEventListener('click', () => {
         crownPick = p.id;
@@ -513,7 +520,7 @@
       li.innerHTML = `
         <span class="player-avatar">${avatarHTML(p.avatar, p.name)}</span>
         <span class="player-name${p.connected ? '' : ' disconnected'}"></span>
-        ${isHost ? `<span class="player-crown" title="${t('host')}">👑</span>` : ''}
+        ${isHost ? `<span class="player-crown" title="${t('host')}">${icon('crown')}</span>` : ''}
       `;
       li.querySelector('.player-name').textContent =
         p.name + (p.id === myPlayerId ? ` (${t('you')})` : '') + (p.connected ? '' : ` (${t('left')})`);
@@ -576,6 +583,8 @@
     startTimerLoop(state.startedAt, state.duration);
     renderProgress(state.progress);
     renderPlayersPanel(state);
+    // Time's up but the server hasn't switched to checking yet: keep the note.
+    if (serverNow() >= state.startedAt + state.duration) renderChecking();
   }
 
   // ---------------- player list (timer bar) ----------------
@@ -610,7 +619,7 @@
       if (!p.connected) li.className = 'is-offline';
       const prog = state.progress && state.progress[p.id];
       li.innerHTML = `${avatarHTML(p.avatar, p.name).replace('class="avatar', 'class="avatar avatar-sm')}<span class="pl-name"></span>${
-        p.id === state.hostId ? '<span aria-hidden="true">👑</span>' : ''
+        p.id === state.hostId ? `<span class="pl-crown">${icon('crown')}</span>` : ''
       }<span class="pl-progress"></span>`;
       li.querySelector('.pl-name').textContent =
         p.name + (p.id === myPlayerId ? ` (${t('you')})` : '') + (p.connected ? '' : ` (${t('offline')})`);
@@ -650,8 +659,8 @@
     els.timerText.textContent = t('checking');
     els.timerFill.style.width = '0%';
     for (const input of answerInputs.values()) input.disabled = true;
-    els.progressRow.innerHTML = '<div class="checking-note"></div>';
-    els.progressRow.firstChild.textContent = t('checkingNote');
+    els.progressRow.innerHTML = `<div class="checking-note">${icon('stopwatch')}<span></span></div>`;
+    els.progressRow.querySelector('.checking-note span').textContent = t('checkingNote');
   }
 
   function renderProgress(progress) {
@@ -706,6 +715,8 @@
         for (const input of answerInputs.values()) input.disabled = true;
         answersDirty = answerInputs.size > 0;
         sendAnswers();
+        // Show "checking" right away; results arrive with the next update.
+        renderChecking();
       }
     }
     tick();
@@ -720,10 +731,14 @@
     const winner = playersById.get(reveal.winnerId);
     const roundScore = reveal.roundScores[myPlayerId] || 0;
 
-    els.revealBanner.textContent = winner
-      ? t('roundWon', { name: winner.name, round: state.round, points: reveal.roundScores[winner.id], mine: roundScore })
-      : t('roundResults', { round: state.round });
-    els.btnShowScores.textContent = reveal.final ? t('seeFinalScores') : t('seeScores');
+    setIconText(
+      els.revealBanner,
+      winner ? 'trophy' : null,
+      winner
+        ? t('roundWon', { name: winner.name, round: state.round, points: reveal.roundScores[winner.id], mine: roundScore })
+        : t('roundResults', { round: state.round })
+    );
+    document.getElementById('show-scores-label').textContent = reveal.final ? t('seeFinalScores') : t('seeScores');
 
     els.revealCategories.innerHTML = '';
     for (const cat of reveal.perCategory) {
@@ -791,20 +806,27 @@
       els.scoresRound.textContent = t('finalResults', { rounds: roundsText(state.totalRounds) });
       const best = Math.max(...state.players.map((p) => p.totalScore));
       const leaders = state.players.filter((p) => p.totalScore === best);
-      els.scoresWinner.textContent =
+      setIconText(
+        els.scoresWinner,
+        leaders.length > 1 ? 'tie' : 'trophy',
         leaders.length > 1
           ? t('tieGame', { names: leaders.map((p) => p.name).join(t('and')) })
           : leaders[0].id === myPlayerId
             ? t('youWinGame')
-            : t('playerWinsGame', { name: leaders[0].name });
+            : t('playerWinsGame', { name: leaders[0].name })
+      );
     } else {
       els.scoresRound.textContent = t('roundLetter', { round: state.round, total: state.totalRounds, letter: reveal.letter });
       const winPoints = winner ? reveal.roundScores[winner.id] : 0;
-      els.scoresWinner.textContent = !winner
-        ? t('roundOver')
-        : winner.id === myPlayerId
-          ? t('youWonWith', { points: winPoints })
-          : t('playerWonWith', { name: winner.name, points: winPoints });
+      setIconText(
+        els.scoresWinner,
+        winner ? 'trophy' : null,
+        !winner
+          ? t('roundOver')
+          : winner.id === myPlayerId
+            ? t('youWonWith', { points: winPoints })
+            : t('playerWonWith', { name: winner.name, points: winPoints })
+      );
     }
 
     els.leaderboardList.innerHTML = '';
@@ -813,7 +835,7 @@
       const li = document.createElement('li');
       li.className = 'player-row' + (p.id === myPlayerId ? ' is-me' : '');
       li.innerHTML = `
-        <span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>
+        <span class="rank">${i < 3 ? icon(`medal-${i + 1}`) : i + 1}</span>
         <span class="player-avatar">${avatarHTML(p.avatar, p.name)}</span>
         <span class="player-name"></span>
         <span class="round-points"></span>

@@ -163,6 +163,10 @@ input[type="range"] {
 }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-family: 'Manrope', sans-serif;
   font-weight: 800;
   font-size: 16px;
@@ -342,7 +346,7 @@ input[type="range"] {
 .avatar-sm { width: 22px; height: 22px; }
 .avatar-sm.avatar-initials { font-size: 9px; }
 
-.rank { width: 22px; text-align: center; font-size: 16px; flex-shrink: 0; }
+.rank { width: 28px; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dim); flex-shrink: 0; display: flex; justify-content: center; }
 
 .avatar-grid {
   display: grid;
@@ -844,6 +848,24 @@ input[type="range"] {
   letter-spacing: 0.02em;
 }
 .credit strong { color: var(--text); font-weight: 800; }
+
+/* ---------- icons (public/icons.js) ---------- */
+
+.icon { display: inline-block; width: 1.3em; height: 1.3em; flex-shrink: 0; vertical-align: -0.28em; }
+[data-icon] { display: inline-flex; }
+.btn .icon { width: 20px; height: 20px; }
+.players-pill .icon { width: 20px; height: 20px; }
+.player-crown .icon, .crown-mark .icon, .pl-crown .icon { width: 22px; height: 22px; display: block; }
+.modal-subtitle { display: flex; align-items: center; gap: 6px; }
+.modal-subtitle .icon { width: 18px; height: 18px; }
+.modal-title .icon { width: 26px; height: 26px; margin-left: 6px; vertical-align: -0.2em; }
+.rank .icon { width: 28px; height: 28px; display: block; }
+.reveal-banner, .scores-hero-winner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.reveal-banner .icon { width: 30px; height: 30px; }
+.scores-hero-winner .icon { width: 36px; height: 36px; }
+.checking-note { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.checking-note .icon { width: 24px; height: 24px; }
+.invite-btn .icon { width: 22px; height: 22px; }
 
 /* ---------- modal ---------- */
 

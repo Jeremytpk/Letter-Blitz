@@ -106,7 +106,7 @@ function clampCategoryCount(n) {
 }
 
 // Must match the ids in public/avatars.js.
-const AVATAR_IDS = new Set(['zuri', 'kofi', 'zog', 'nova', 'bolt', 'kitsu', 'hoot', 'bamboo', 'felis', 'draco', 'inky', 'yeti']);
+const AVATAR_IDS = new Set(['zuri', 'Tpk', 'zog', 'nova', 'bolt', 'kitsu', 'hoot', 'bamboo', 'felis', 'draco', 'inky', 'yeti']);
 
 function cleanAvatar(avatar) {
   return AVATAR_IDS.has(avatar) ? avatar : null;

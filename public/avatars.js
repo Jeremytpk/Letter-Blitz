@@ -9,8 +9,8 @@
 
   const AVATARS = [
     {
-      id: 'zuri',
-      name: { en: 'Zuri', fr: 'Zuri' },
+      id: 'Titina',
+      name: { en: 'Titina', fr: 'Titina' },
       kind: { en: 'Human', fr: 'Humaine' },
       svg: `${bg('#ffb86b')}
         <circle cx="22" cy="24" r="13" fill="#2b1a12"/><circle cx="78" cy="24" r="13" fill="#2b1a12"/>
@@ -24,8 +24,8 @@
         <path d="M43 64 Q50 70 57 64" stroke="#3b1d0e" stroke-width="2.4" fill="none" stroke-linecap="round"/>`,
     },
     {
-      id: 'kofi',
-      name: { en: 'Kofi', fr: 'Kofi' },
+      id: 'Tpk',
+      name: { en: 'Tpk', fr: 'Tpk' },
       kind: { en: 'Human', fr: 'Humain' },
       svg: `${bg('#3a86ff')}
         ${shoulders('#ffd166')}
@@ -61,8 +61,8 @@
         <ellipse cx="50" cy="66" rx="3.5" ry="2.4" fill="#2d6a4f"/>`,
     },
     {
-      id: 'nova',
-      name: { en: 'Nova', fr: 'Nova' },
+      id: 'Liango',
+      name: { en: 'Liango', fr: 'Liango' },
       kind: { en: 'Cyborg', fr: 'Cyborg' },
       svg: `${bg('#1d3557')}
         <path d="M10 30 H22 V20 M90 70 H78 V80" stroke="#48cae4" stroke-width="1.5" fill="none" opacity=".5"/>
