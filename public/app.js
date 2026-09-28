@@ -3,6 +3,8 @@
   // The game runs in a Netlify Function (netlify/functions/game.mjs). Every
   // phone polls it about once a second to stay in sync.
   const API_URL = '/api/game';
+  // Public address used in invite links (local testing keeps its own address).
+  const SITE_URL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin : 'https://letterblitz.world';
   const POLL_FAST_MS = 1000;
   const POLL_SLOW_MS = 1500;
 
@@ -1565,7 +1567,7 @@
 
   els.btnInvite.addEventListener('click', async () => {
     if (!currentState) return;
-    const url = `${location.origin}/?room=${currentState.code}`;
+    const url = `${SITE_URL}/?room=${currentState.code}`;
     const text = t('inviteShareText', { code: currentState.code });
     if (navigator.share) {
       try {
