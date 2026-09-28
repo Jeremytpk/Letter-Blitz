@@ -181,7 +181,7 @@ input[type="range"] {
   color: var(--accent-ink);
 }
 
-.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary:disabled, .btn-danger-outline:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-secondary {
   background: var(--surface-2);
@@ -1090,7 +1090,7 @@ input[type="range"] {
   user-select: all;
 }
 .prize-email { display: flex; flex-direction: column; gap: 8px; text-align: left; }
-.prize-email input[type='email'] {
+.prize-email input[type='email'], .prize-email input[type='tel'], .prize-email input[type='text'], .prize-email textarea {
   font: inherit; font-size: 16px; color: var(--text); background: var(--surface-2);
   border: 1px solid var(--border); border-radius: 12px; padding: 12px; width: 100%;
 }
@@ -1355,3 +1355,31 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .challenge-modal .challenge-text { margin: 4px 0 10px; }
 .challenge-modal-rules a { color: var(--accent); font-weight: 700; }
 .play-leave { display: block; margin: 18px auto 8px; font-size: 14px; color: var(--text-dim); }
+.sf-winner-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px 12px; }
+.prize-status { margin: 0; font-size: 13px; font-weight: 800; border-radius: 10px; padding: 6px 10px; }
+.prize-status.is-pending { color: var(--warn); background: var(--surface-2); }
+.prize-status.is-active { color: var(--good); background: var(--good-bg); }
+.prize-lock-note { margin: 0; font-size: 13px; font-weight: 700; color: var(--warn); text-align: center; }
+.prize-lock-note.is-over { color: var(--bad); }
+.prize-skip { align-self: center; font-size: 14px; color: var(--text-dim); }
+.idle-banner {
+  position: fixed;
+  left: 50%;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  width: min(460px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 2px solid var(--warn);
+  border-radius: 16px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  z-index: 40;
+}
+.idle-banner span { flex: 1; }
+.idle-banner .btn { flex-shrink: 0; }

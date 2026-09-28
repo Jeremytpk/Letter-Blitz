@@ -14,7 +14,7 @@ import { createAdmin, isAdminEntry } from './admin.mjs';
 import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv, claimsCsv, sponsorAnswersCsv, sponsorAnswerSummaryCsv } from './archive.mjs';
 import { createInbox, InboxError } from './inbox.mjs';
 import { cleanText, isPlayerId, isRoomCode, underLimit } from './security.mjs';
-import { campaignCategories, createSponsors, publicCampaign, SponsorError } from './sponsors.mjs';
+import { campaignCategories, cleanWinnerDetails, createSponsors, publicCampaign, SponsorError, winnerFields } from './sponsors.mjs';
 import { CATEGORY_SPEC } from './category-spec.mjs';
 
 export const CATEGORY_BANK = [
@@ -50,12 +50,19 @@ const ONLINE_MS = 15000; // no poll for this long = shown as disconnected
 const HOST_INACTIVE_MS = 60000; // room head silent this long = someone else holds the crown meanwhile
 const LAST_SEEN_WRITE_MS = 8000;
 const CHECK_TAKEOVER_MS = 20000; // if a checker dies, another poll takes over
-const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
-const ROOM_INACTIVE_MS = 3 * 60 * 1000; // every player silent this long = the room closes
+const ROOM_TTL_MS = 6 * 60 * 60 * 1000; // a room's whole life, however busy
+// A room closes for inactivity when nobody has had the app open for
+// ROOM_OFFLINE_MS, or — even with players online — nobody has done anything
+// (joined, played, typed, tapped) for ROOM_IDLE_MS. Online players are warned
+// ROOM_IDLE_WARN_MS before that and can keep it open.
+const ROOM_OFFLINE_MS = 5 * 60 * 1000;
+const ROOM_IDLE_MS = 12 * 60 * 1000;
+const ROOM_IDLE_WARN_MS = 2 * 60 * 1000;
+const PRIZE_LOCK_MS = 50000; // a winner idle this long gives the room owner control back
 const CHECK_TIME_LIMIT_MS = 7000; // Netlify stops a function after 10s
 
 // `code` lets each player's page show the message in their own language.
-// Rooms past their 12-hour lifetime leave the game: a summary goes to the
+// Rooms past their 6-hour lifetime leave the game: a summary goes to the
 // admin archive (kept until the admin deletes it), then the live room — with
 // its answers — is removed. Runs hourly (netlify/functions/cleanup.mjs) and
 // whenever the dashboard loads.
@@ -163,13 +170,30 @@ function cleanName(name) {
 const roomKey = (code) => `room-${code}`;
 
 // Anyone pressing a button is clearly still here.
+// A player did something (not just having the app open).
 function touch(room, playerId, now) {
   if (room.players[playerId]) room.players[playerId].lastSeen = now;
+  room.lastActivity = now;
 }
 
-// Nobody in the room has been active for ROOM_INACTIVE_MS (it closes).
+// When the room closes for inactivity if nothing happens before then.
+// Rooms from before activity was tracked only close when everyone is offline.
+function idleClosesAt(room) {
+  return room.lastActivity ? room.lastActivity + ROOM_IDLE_MS : Infinity;
+}
+
+function closingSoon(room, now) {
+  const idleAt = idleClosesAt(room);
+  const lifetimeAt = room.createdAt + ROOM_TTL_MS;
+  const closesAt = Math.min(idleAt, lifetimeAt);
+  if (closesAt - now > ROOM_IDLE_WARN_MS) return { closesAt: null, closesReason: null };
+  return { closesAt, closesReason: lifetimeAt <= idleAt ? 'lifetime' : 'idle' };
+}
+
+// Nobody online for ROOM_OFFLINE_MS, or nobody active for ROOM_IDLE_MS: it closes.
 function isAbandoned(room, now) {
-  return Object.values(room.players).every((p) => now - p.lastSeen > ROOM_INACTIVE_MS);
+  const allOffline = Object.values(room.players).every((p) => now - p.lastSeen > ROOM_OFFLINE_MS);
+  return allOffline || now >= idleClosesAt(room);
 }
 
 function isOnline(p, now) {
@@ -274,6 +298,36 @@ function scoreRound(room, found) {
   room.reveal = { round: room.round, letter: room.letter, perCategory, roundScores, winnerId, final };
 }
 
+// Details a sponsored room's winners are asked for (set when it was created).
+function roomWinnerFields(room) {
+  return (room.sponsor && room.sponsor.winnerFields) || [];
+}
+
+// What a winner sees of their prize: the code, and whether they still need
+// to send the details the campaign asks for (the sponsor needs them to hand
+// the prize over).
+function prizeFor(room, playerId) {
+  const prize = room.prizes && room.prizes[playerId];
+  if (!prize) return null;
+  const detailsSaved = !!prize.emailSaved;
+  const skipped = !!prize.skipped;
+  const needsDetails = roomWinnerFields(room).length > 0 && !detailsSaved && !skipped;
+  return { code: skipped ? null : prize.code, needsDetails, skipped, fields: roomWinnerFields(room), detailsSaved, emailSaved: detailsSaved };
+}
+
+// Winners still in the room who haven't yet sent their details or skipped
+// their prize.
+function pendingWinners(room) {
+  return Object.keys(room.prizes || {}).filter((id) => room.players[id] && (prizeFor(room, id) || {}).needsDetails);
+}
+
+// While a winner is deciding (send details or skip), the room owner can't
+// close the room or start a new game — until the winner has been idle for
+// PRIZE_LOCK_MS.
+function prizeLocked(room, now) {
+  return pendingWinners(room).length > 0 && now < (room.prizeLockUntil || 0);
+}
+
 // What every player is allowed to see.
 function publicState(room, playerId, now) {
   const players = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
@@ -296,6 +350,9 @@ function publicState(room, playerId, now) {
     categoriesPerRound: room.categoriesPerRound,
     totalRounds: room.totalRounds || DEFAULT_ROUNDS,
     showPlayers: !!room.showPlayers,
+    // Set during the last ROOM_IDLE_WARN_MS before the room closes, with why:
+    // 'idle' (nobody playing — can be kept open) or 'lifetime' (6-hour limit).
+    ...closingSoon(room, now),
     challenge: room.challenge || '',
     hostId: effectiveHostId(room, now),
     ownerId: room.hostId,
@@ -312,10 +369,12 @@ function publicState(room, playerId, now) {
     sponsorId: room.sponsor ? room.sponsor.id : null,
     prizeResult: room.prizeResult || null,
     // Prize codes go only to the player who won them.
-    yourPrize:
-      room.prizes && room.prizes[playerId]
-        ? { code: room.prizes[playerId].code, emailSaved: !!room.prizes[playerId].emailSaved }
-        : null,
+    yourPrize: prizeFor(room, playerId),
+    // Winners who still have to send their details or skip their prize;
+    // until prizeLockUntil the owner can't close the room or start again.
+    prizeDetailsPending: pendingWinners(room),
+    prizeLocked: prizeLocked(room, now),
+    prizeLockUntil: room.prizeLockUntil || 0,
   };
 }
 
@@ -362,6 +421,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       if (r.prizeResult) return false;
       r.prizeResult = result;
       r.prizes = prizes;
+      r.prizeLockUntil = now() + PRIZE_LOCK_MS;
     });
   }
 
@@ -382,7 +442,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
 
   function closedError(room) {
     return room.closedReason === 'inactive'
-      ? new GameError('room_inactive', 'This room was closed because nobody was active in it for 3 minutes.')
+      ? new GameError('room_inactive', 'This room was closed for inactivity.')
       : new GameError('room_closed', 'The host closed the room.');
   }
 
@@ -391,9 +451,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     if (!res || !res.data) return null;
     const room = res.data;
     const t = now();
-    if (t - room.createdAt > ROOM_TTL_MS) return null;
     if (room.closed) throw closedError(room);
-    // Nobody in the room has been active for 3 minutes: it closes for good.
+    // Past its 6-hour life (until the hourly clean-up removes it).
+    if (t - room.createdAt > ROOM_TTL_MS) throw new GameError('room_expired', 'This room reached its 6-hour limit and closed.');
+    // Nobody online for 5 minutes, or nobody active for 12: it closes for good.
     if (isAbandoned(room, t)) {
       room.closed = true;
       room.closedReason = 'inactive';
@@ -522,10 +583,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           reveal: null,
           checkingSince: null,
           createdAt: t,
+          lastActivity: t,
           sponsor: campaign
             ? {
                 id: campaign.id,
                 categories: campaignCategories(campaign).map((c) => ({ label: c.label.en || c.label.fr, checkAs: c.checkAs })),
+                winnerFields: winnerFields(campaign),
                 minPlayers: campaign.minPlayers,
                 minRounds: campaign.minRounds,
               }
@@ -556,7 +619,11 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           if (cleanAvatar(avatar)) existing.avatar = cleanAvatar(avatar);
           return;
         }
-        if (r.phase !== 'lobby') throw new GameError('game_started', 'This game already started. Ask the host for a new room.');
+        if (r.phase !== 'lobby') {
+          // Coming back to a game that started while they were away.
+          if (rejoining) throw new GameError('left_out', 'A game started while you were away, so you’re not part of it.');
+          throw new GameError('game_started', 'This game already started. Ask the host for a new room.');
+        }
         // A room with a party challenge only takes players who have read and accepted it.
         if (r.challenge && acceptedChallenge !== r.challenge) {
           throw new GameError('challenge_required', 'Read and accept the room’s challenge to join.');
@@ -569,6 +636,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         }
         id = id || randomId(12);
         r.players[id] = { id, name: n, avatar: cleanAvatar(avatar), totalScore: 0, joinedAt: t, lastSeen: t };
+        r.lastActivity = t;
       });
       return { room, playerId: id };
     },
@@ -606,7 +674,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           if (text) clean[cat.id] = text;
         }
         r.answers[playerId] = clean;
-        r.players[playerId].lastSeen = t;
+        touch(r, playerId, t);
       });
       return { room, playerId };
     },
@@ -620,6 +688,15 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (r.phase !== 'lobby') return false;
         const online = Object.values(r.players).filter((p) => isOnline(p, t));
         if (online.length < MIN_PLAYERS_TO_START) throw new GameError('need_players', 'Need at least 2 players to start.');
+        // Only players online right now take part: anyone away leaves the room
+        // (they can join again once it's back in the lobby).
+        for (const p of Object.values(r.players)) {
+          if (!isOnline(p, t)) {
+            delete r.players[p.id];
+            delete r.answers[p.id];
+          }
+        }
+        if (!r.players[r.hostId]) r.hostId = playerId;
         startRound(r, randomLetter(), t);
         started = true;
       });
@@ -696,25 +773,60 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { ok: true } };
     },
 
-    // Winner leaves an email (with consent) so the sponsor can deliver the prize.
-    async claimPrize({ code, playerId, email, consent }) {
-      const mail = cleanText(email, { max: 200 });
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new GameError('bad_email', 'That email address doesn’t look right.');
+    // Winner leaves the details the campaign asks for (with consent) so the
+    // sponsor can hand over the prize.
+    async claimPrize({ code, playerId, details, email, consent }) {
+      const loaded = await load(code);
+      if (!loaded) throw new GameError('room_not_found', 'Room not found. Check the code.');
+      // Older pages only send an email; rooms from before winner details
+      // were added only ever asked for one.
+      const input = details && typeof details === 'object' ? details : { email };
+      const fields = loaded.room.sponsor && loaded.room.sponsor.winnerFields ? loaded.room.sponsor.winnerFields : ['email'];
+      const clean = await sponsorCall(async () => cleanWinnerDetails(fields, input));
       if (!consent) throw new GameError('need_consent', 'Please tick the box to agree.');
       const room = await mutate(code, (r) => {
         const prize = r.prizes && isPlayerId(playerId) && Object.hasOwn(r.prizes, playerId) ? r.prizes[playerId] : null;
-        if (!prize) throw new GameError('no_prize', 'No prize to claim.');
+        if (!prize || prize.skipped) throw new GameError('no_prize', 'No prize to claim.');
         if (prize.emailSaved) return false;
+        touch(r, playerId, now());
         prize.emailSaved = true;
-        prize.pendingEmail = mail;
+        prize.pendingDetails = clean;
       });
       const prize = room.prizes[playerId];
-      if (!prize.pendingEmail) return { room, playerId };
-      await sponsors.addEmail(prize.claimKey, prize.pendingEmail);
+      if (!prize.pendingDetails) return { room, playerId };
+      await sponsors.addDetails(prize.claimKey, prize.pendingDetails);
       const updated = await mutate(code, (r) => {
-        delete r.prizes[playerId].pendingEmail;
+        delete r.prizes[playerId].pendingDetails;
       });
       return { room: updated, playerId };
+    },
+
+    // The winner is filling in their details: keep the room locked for them
+    // (until they've been idle for PRIZE_LOCK_MS; once unlocked it stays so).
+    async prizeActivity({ code, playerId }) {
+      const room = await mutate(code, (r) => {
+        const t = now();
+        if (!pendingWinners(r).includes(playerId)) return false;
+        touch(r, playerId, t);
+        // Once the room has been handed back to the owner it stays so.
+        if (t < (r.prizeLockUntil || 0)) r.prizeLockUntil = t + PRIZE_LOCK_MS;
+      });
+      return { room, playerId };
+    },
+
+    // The winner doesn't want the prize: the code goes back for another
+    // winner, and they can still win one later in the campaign.
+    async skipPrize({ code, playerId }) {
+      let skipped = null;
+      const room = await mutate(code, (r) => {
+        const prize = r.prizes && isPlayerId(playerId) && Object.hasOwn(r.prizes, playerId) ? r.prizes[playerId] : null;
+        if (!prize || prize.skipped || prize.emailSaved) return false;
+        touch(r, playerId, now());
+        prize.skipped = true;
+        skipped = { ...prize };
+      });
+      if (skipped && room.sponsor) await sponsors.releasePrize(room.sponsor.id, playerId, skipped.claimKey, skipped.code);
+      return { room, playerId };
     },
 
     async adminSponsors({ token }) {
@@ -802,6 +914,15 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { open, challenge: open ? loaded.room.challenge || '' : '' } };
     },
 
+    // "Keep it open": a player online answers the inactivity warning.
+    async keepAlive({ code, playerId }) {
+      const room = await mutate(code, (r) => {
+        if (!r.players[playerId]) throw new GameError('not_in_room', 'You are no longer in this room.');
+        touch(r, playerId, now());
+      });
+      return { room, playerId };
+    },
+
     // The room head decides whether everyone can see the player list during rounds.
     async setShowPlayers({ code, playerId, value }) {
       const room = await mutate(code, (r) => {
@@ -820,6 +941,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         touch(r, playerId, t);
         if (playerId !== effectiveHostId(r, t)) throw new GameError('host_only_restart', 'Only the host can start a new game.');
         if (r.phase !== 'reveal' || !r.reveal.final) return false;
+        if (prizeLocked(r, t)) throw new GameError('prize_pending', 'A winner is still claiming or skipping their prize.');
         r.phase = 'lobby';
         r.round = 0;
         r.letter = null;
@@ -829,6 +951,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         r.reveal = null;
         r.prizeResult = null;
         r.prizes = null;
+        r.prizeLockUntil = 0;
         for (const p of Object.values(r.players)) p.totalScore = 0;
       });
       return { room, playerId };
@@ -843,6 +966,9 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (!r.players[playerId]) return false;
         const isHost = playerId === r.hostId;
         const alone = Object.keys(r.players).length === 1;
+        if (isHost && closeRoom && !alone && prizeLocked(r, now()) && pendingWinners(r).some((id) => id !== playerId)) {
+          throw new GameError('prize_pending', 'A winner is still claiming or skipping their prize.');
+        }
         if (isHost && (closeRoom || alone)) {
           r.closed = true;
           return;
@@ -859,7 +985,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         delete r.players[playerId];
         delete r.answers[playerId];
       }).catch((err) => {
-        if (err instanceof GameError && (err.code === 'invalid_new_host' || err.code === 'host_must_choose')) throw err;
+        if (err instanceof GameError && ['invalid_new_host', 'host_must_choose', 'prize_pending'].includes(err.code)) throw err;
       });
       return { room: null, playerId: null };
     },
@@ -879,7 +1005,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
   }
 
   // Everything the admin dashboard shows. Also moves rooms past their
-  // 12-hour lifetime into the archive.
+  // 6-hour lifetime into the archive.
   async function dashboard() {
     const t = now();
     await deleteExpiredRooms(store, t).catch((err) => console.warn('Cleanup failed:', err.message));

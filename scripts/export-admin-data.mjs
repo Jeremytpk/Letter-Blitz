@@ -79,8 +79,13 @@ function mergeInto(file, freshCsv, keyCols) {
   const key = (r) => keyIdx.map((i) => r[i]).join('|');
   const merged = new Map();
   if (existsSync(file)) {
-    const old = parseCsv(readFileSync(file, 'utf8'));
-    for (const r of old.slice(1)) merged.set(key(r), r);
+    // Line older rows up with today's columns by name, in case columns were added.
+    const [oldHeader = [], ...oldRows] = parseCsv(readFileSync(file, 'utf8'));
+    const from = header.map((h) => oldHeader.indexOf(h));
+    for (const r of oldRows) {
+      const row = from.map((i) => (i >= 0 ? r[i] ?? '' : ''));
+      merged.set(key(row), row);
+    }
   }
   for (const r of fresh.slice(1)) merged.set(key(r), r);
   writeCsv(file, [header, ...merged.values()]);

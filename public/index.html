@@ -712,13 +712,41 @@
                 </select>
               </label>
             </div>
-            <label class="check-row"
-              ><input id="sf-email" type="checkbox" /><span
-                data-i18n="sfCollectEmail"
-                >Ask winners for their email (so the sponsor can deliver the
-                prize)</span
-              ></label
-            >
+            <div class="field">
+              <span class="field-label" data-i18n="sfWinnerDetails"
+                >Winner details for the sponsor</span
+              >
+              <p class="admin-note" data-i18n="sfWinnerDetailsHint">
+                The winner sees their prize code at the end of the game and
+                fills these in on the same page.
+              </p>
+              <div class="sf-winner-fields" id="sf-winner-fields">
+                <label class="check-row"
+                  ><input type="checkbox" value="fullName" /><span
+                    data-i18n="wdFullName"
+                    >Full name</span
+                  ></label
+                >
+                <label class="check-row"
+                  ><input type="checkbox" value="email" /><span
+                    data-i18n="wdEmail"
+                    >Email</span
+                  ></label
+                >
+                <label class="check-row"
+                  ><input type="checkbox" value="phone" /><span
+                    data-i18n="wdPhone"
+                    >Phone number</span
+                  ></label
+                >
+                <label class="check-row"
+                  ><input type="checkbox" value="address" /><span
+                    data-i18n="wdAddress"
+                    >City and delivery address</span
+                  ></label
+                >
+              </div>
+            </div>
           </fieldset>
 
           <fieldset class="admin-card">
@@ -1078,6 +1106,7 @@
         >
           Play again
         </button>
+        <p class="prize-lock-note" id="play-again-lock" hidden></p>
 
         <button class="btn btn-secondary" id="btn-show-answers">
           <span data-icon="arrow-left"></span
@@ -1087,6 +1116,14 @@
     </div>
 
     <div class="toast" id="toast" hidden></div>
+
+    <!-- Shown to players online when nobody has done anything for 10 minutes -->
+    <div class="idle-banner" id="idle-banner" role="alert" hidden>
+      <span id="idle-text"></span>
+      <button type="button" class="btn btn-primary btn-sm" id="btn-keep-open" data-i18n="keepRoomOpen">
+        Keep it open
+      </button>
+    </div>
 
     <div class="modal-backdrop" id="feedback-modal" hidden>
       <form
@@ -1295,6 +1332,7 @@
           >
             Close the room for everyone
           </button>
+          <p class="prize-lock-note" id="close-room-lock" hidden></p>
           <button class="btn btn-secondary" id="btn-host-stay" data-i18n="stay">
             Stay
           </button>

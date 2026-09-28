@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Admin archive and exports.
 //
-// When a room reaches the end of its 12-hour life, a summary of it (code,
+// When a room reaches the end of its 6-hour life, a summary of it (code,
 // dates, rounds, and each player's name, avatar and score — not their
 // answers) is kept here for the admin. Nothing in the archive or the
 // statistics is ever deleted automatically: only the admin can, from the
@@ -133,8 +133,14 @@ export function messagesCsv(items) {
 
 export function claimsCsv(items) {
   return toCsv(
-    ['campaign', 'awarded_at', 'prize_code', 'player_name', 'avatar', 'score', 'room_code', 'email', 'email_consent'],
-    items.map((c) => [c.campaignName, iso(c.createdAt), c.code, c.playerName, c.avatar, c.score, c.roomCode, c.email, c.consent ? 'yes' : 'no'])
+    ['campaign', 'awarded_at', 'prize_code', 'code_status', 'player_name', 'avatar', 'score', 'room_code', 'full_name', 'email', 'phone', 'address', 'consent', 'details_sent_at'],
+    items.map((c) => [
+      c.campaignName, iso(c.createdAt), c.code,
+      // A code is only valid once its winner has sent their details.
+      c.skipped ? 'skipped by winner' : c.detailsNeeded === false || c.detailsAt || c.emailAt ? 'active' : 'waiting for winner details',
+      c.playerName, c.avatar, c.score, c.roomCode,
+      c.fullName || '', c.email || '', c.phone || '', c.address || '', c.consent ? 'yes' : 'no', iso(c.detailsAt || c.emailAt),
+    ])
   );
 }
 

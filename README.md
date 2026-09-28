@@ -86,18 +86,25 @@ Open the URL it prints (usually `http://localhost:8888`).
 - Each phone remembers its player name and room, so a refresh or lost
   connection rejoins automatically. Tapping **Leave** (after a confirmation)
   removes the player and erases that saved data.
+- Only players online when a game starts take part: anyone away is removed
+  from the room and told why when they come back; they can join again once
+  the room is back in the lobby. Starting needs at least 2 players online.
 - Rounds start with a 3-2-1 countdown so every phone starts at the same moment.
 - The category list lives in `netlify/lib/game.mjs` (`CATEGORY_BANK`). The nine core
   ones are used first; extras are mixed in when a room asks for more than nine.
-- Rooms expire after 12 hours. A room where nobody has been active for
-  3 minutes closes automatically; members who come back see a page saying
-  it was closed for inactivity.
+- Rooms last at most 6 hours (players get a 2-minute warning saying why
+  before it closes). A room closes automatically for inactivity
+  when nobody has had the game open for 5 minutes, or — even with players
+  online — when nobody has done anything (joined, played, typed, tapped)
+  for 12 minutes; at 10 minutes, players online get a 2-minute countdown
+  with a "Keep it open" button. Members who come back see a page saying it
+  was closed for inactivity.
 - **Admin dashboard** (visits, players, rooms, live rooms and players, time
   played) is switched on by four environment variables set in Netlify —
   `ADMIN_NAME`, `ADMIN_AVATAR`, `ADMIN_PASSWORD`, `ADMIN_PASSCODE`. Their
   values are never stored in this repository (a local copy lives in `.env`,
   which git ignores). See `netlify/lib/admin.mjs`.
-- Rooms leave the game about 12 hours after creation (hourly scheduled
+- Rooms leave the game about 6 hours after creation (hourly scheduled
   function `netlify/functions/cleanup.mjs`); a summary of each (code, dates,
   rounds, player names, avatars, scores — not answers) goes to the admin
   archive. Admin data (statistics and archive) is never deleted
@@ -137,8 +144,16 @@ Open the URL it prints (usually `http://localhost:8888`).
   "Real prizes" (and which sponsor); the option is hidden when no campaign
   is running. Prize rooms show the sponsor; the winner of an
   eligible game (minimum players and rounds) gets the next unused code, one
-  prize per player per campaign, and can leave an email (with consent) for
-  delivery. Each campaign has a rules page (`/rules.html?c=<id>`) and a
+  prize per player per campaign. Each campaign picks which winner details
+  the sponsor needs (full name, email, phone, city and delivery address);
+  the winner sees their prize code at the end of the game and fills them
+  in, with consent, on the same page. A code only counts once its winner
+  has sent them (proof of who won); the card shows it as "not active yet"
+  until then. The winner can also skip the prize (the code goes back for
+  another winner). Until every winner has sent their details or skipped,
+  the room owner can't start a new game or close the room (the server
+  refuses; both see why, with a countdown) — unless the winner stays idle
+  for 50 seconds, which hands control back to the owner. They're in the campaign's claims CSV. Each campaign has a rules page (`/rules.html?c=<id>`) and a
   report (rooms, players reached, games, prizes, codes left, site visits,
   answers collected). A campaign can have up to 3 sponsored categories,
   played one per round in turn (round 1 the first, round 2 the second…);

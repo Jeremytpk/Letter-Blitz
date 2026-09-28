@@ -38,6 +38,43 @@ const MAX_LOGO = 120 * 1024;
 const MAX_CODES = 5000;
 export const MAX_SPONSOR_CATEGORIES = 3;
 
+// Details a campaign can ask its winners for, so the sponsor can hand over
+// the prize. Campaigns saved before this only had collectEmail.
+export const WINNER_FIELDS = ['fullName', 'email', 'phone', 'address'];
+export function winnerFields(c) {
+  if (!c) return [];
+  if (Array.isArray(c.winnerFields)) return c.winnerFields;
+  return c.collectEmail ? ['email'] : [];
+}
+
+// Checks a winner's details against what the campaign asks for.
+// Returns the cleaned details, or throws SponsorError.
+export function cleanWinnerDetails(fields, input) {
+  const v = input || {};
+  const out = {};
+  for (const f of fields) {
+    if (f === 'fullName') {
+      out.fullName = cleanText(v.fullName, { max: 80 });
+      if (out.fullName.length < 2) throw new SponsorError('bad_full_name', 'Please enter your full name.');
+    } else if (f === 'email') {
+      out.email = cleanText(v.email, { max: 200 });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) throw new SponsorError('bad_email', 'That email address doesn’t look right.');
+    } else if (f === 'phone') {
+      // Kept as + and digits only, e.g. +243812345678.
+      const raw = cleanText(v.phone, { max: 30 });
+      const digits = raw.replace(/\D/g, '');
+      if (!/^\+?[\d\s().-]+$/.test(raw) || digits.length < 6 || digits.length > 15) {
+        throw new SponsorError('bad_phone', 'That phone number doesn’t look right.');
+      }
+      out.phone = `${raw.trim().startsWith('+') ? '+' : ''}${digits}`;
+    } else if (f === 'address') {
+      out.address = cleanText(v.address, { max: 200 });
+      if (out.address.length < 5) throw new SponsorError('bad_address', 'Please enter your city and delivery address.');
+    }
+  }
+  return out;
+}
+
 // A campaign's own categories: [{ label: { en, fr }, checkAs }], played one
 // per round in turn. Campaigns saved before there could be several had a
 // single categoryLabel / checkAs.
@@ -83,7 +120,8 @@ export function publicCampaign(c) {
     categories: campaignCategories(c).map((cat) => ({ label: cat.label })),
     minPlayers: c.minPlayers,
     minRounds: c.minRounds,
-    collectEmail: c.collectEmail,
+    winnerFields: winnerFields(c),
+    collectEmail: winnerFields(c).includes('email'),
     extraRules: c.extraRules,
     startsAt: c.startsAt,
     endsAt: c.endsAt,
@@ -164,7 +202,7 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
         categories,
         minPlayers: Math.min(12, Math.max(2, Math.round(Number(input.minPlayers) || 3))),
         minRounds: [1, 3, 5, 7, 11].includes(Number(input.minRounds)) ? Number(input.minRounds) : 3,
-        collectEmail: !!input.collectEmail,
+        winnerFields: WINNER_FIELDS.filter((f) => Array.isArray(input.winnerFields) && input.winnerFields.includes(f)),
         extraRules: multiline(input.extraRules, 2000),
         startsAt,
         endsAt,
@@ -239,21 +277,42 @@ export function createSponsors(store, now = () => Date.now(), categoryIds = []) 
         playerName: player.name,
         avatar: player.avatar || '',
         score: player.totalScore,
+        // The code only counts once the winner has sent these details.
+        detailsNeeded: winnerFields(campaign).length > 0,
+        fullName: '',
         email: '',
+        phone: '',
+        address: '',
         consent: false,
         createdAt: t,
       });
       return { status: 'awarded', code, claimKey };
     },
 
-    // Winner adds their email so the sponsor can deliver the prize.
-    async addEmail(claimKey, email) {
+    // The winner skipped their prize: the code goes back to the end of the
+    // list for another winner, and they may win again in this campaign.
+    async releasePrize(id, playerId, claimKey, code) {
+      try {
+        if (String(claimKey).startsWith(CLAIM)) {
+          const claim = await getJSON(claimKey);
+          if (claim) await store.setJSON(claimKey, { ...claim, skipped: true, skippedAt: now() });
+        }
+        await mutate(CODES + id, (d) => { d.codes.push(code); }, { codes: [], used: 0 });
+        await store.delete(`prizegot-${id}-${playerId}`);
+        await this.bump(id, { prizes: -1, prizesSkipped: 1 });
+      } catch (err) {
+        console.warn('Releasing a skipped prize failed:', err.message);
+      }
+    },
+
+    // Winner adds their details so the sponsor can hand over the prize.
+    async addDetails(claimKey, details) {
       if (!String(claimKey).startsWith(CLAIM)) return false;
       const claim = await getJSON(claimKey);
       if (!claim) return false;
-      claim.email = email;
+      Object.assign(claim, details);
       claim.consent = true;
-      claim.emailAt = now();
+      claim.detailsAt = now();
       await store.setJSON(claimKey, claim);
       return true;
     },

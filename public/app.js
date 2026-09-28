@@ -171,6 +171,11 @@
     crownList: document.getElementById('crown-list'),
     btnGiveCrown: document.getElementById('btn-give-crown'),
     btnCloseRoom: document.getElementById('btn-close-room'),
+    closeRoomLock: document.getElementById('close-room-lock'),
+    idleBanner: document.getElementById('idle-banner'),
+    idleText: document.getElementById('idle-text'),
+    btnKeepOpen: document.getElementById('btn-keep-open'),
+    playAgainLock: document.getElementById('play-again-lock'),
     btnHostStay: document.getElementById('btn-host-stay'),
     btnLeaveCancel: document.getElementById('btn-leave-cancel'),
     btnLeaveConfirm: document.getElementById('btn-leave-confirm'),
@@ -226,13 +231,13 @@
       clockOffset = data.now - (sentAt + Date.now()) / 2;
     }
     if (!res.ok) {
-      // A room closed for inactivity is handled like any closed room, but
-      // the closed page says why.
-      const inactive = data.errorCode === 'room_inactive';
-      const code = inactive ? 'room_closed' : data.errorCode;
+      // A room closed for inactivity or at its 6-hour limit is handled like
+      // any closed room, but the closed page says why.
+      const closedKind = { room_inactive: 'inactive', room_expired: 'expired' }[data.errorCode] || 'closed';
+      const code = closedKind === 'closed' ? data.errorCode : 'room_closed';
       const err = new Error(code ? t(`err_${code}`) : t('somethingWrong'));
       err.code = code;
-      err.closedKind = inactive ? 'inactive' : 'closed';
+      err.closedKind = closedKind;
       err.serverMessage = data.error;
       err.fatal = code === 'room_not_found' || code === 'not_in_room' || code === 'room_closed';
       throw err;
@@ -970,7 +975,9 @@
     field('sf-codes').value = '';
     field('sf-min-players').value = c ? c.minPlayers : 3;
     field('sf-min-rounds').value = String(c ? c.minRounds : 3);
-    field('sf-email').checked = c ? c.collectEmail : false;
+    // New campaigns ask for name, email and phone by default.
+    const wanted = c ? c.winnerFields || (c.collectEmail ? ['email'] : []) : ['fullName', 'email', 'phone'];
+    for (const box of document.querySelectorAll('#sf-winner-fields input')) box.checked = wanted.includes(box.value);
     field('sf-starts').value = toLocalInput(c ? c.startsAt : now);
     field('sf-ends').value = toLocalInput(c ? c.endsAt : now + 30 * 86400000);
     field('sf-active').checked = c ? c.active : true;
@@ -1122,7 +1129,7 @@
       categories: readCategorySlots(),
       minPlayers: Number(field('sf-min-players').value),
       minRounds: Number(field('sf-min-rounds').value),
-      collectEmail: field('sf-email').checked,
+      winnerFields: [...document.querySelectorAll('#sf-winner-fields input:checked')].map((box) => box.value),
       extraRules: { en: field('sf-rules-en').value, fr: field('sf-rules-fr').value },
       startsAt: toIso(field('sf-starts').value),
       endsAt: toIso(field('sf-ends').value),
@@ -1305,7 +1312,7 @@
   function renderRoomClosed() {
     if (!closedInfo) return;
     const { kind, code } = closedInfo;
-    const text = { closed: 'roomClosedText', inactive: 'roomInactiveText', gone: 'roomGoneText' }[kind];
+    const text = { closed: 'roomClosedText', inactive: 'roomInactiveText', expired: 'roomExpiredText', gone: 'roomGoneText' }[kind];
     els.closedTitle.textContent = t(kind === 'gone' ? 'roomGoneTitle' : 'roomClosedTitle');
     els.closedText.innerHTML = t(text, { code: '<strong></strong>' });
     els.closedText.querySelector('strong').textContent = code || '';
@@ -1383,6 +1390,10 @@
     setIconText(els.leaveTitle, null, mode === 'host' ? t('hostLeaveTitle') : t('leaveTitle'));
     if (mode === 'host') els.leaveTitle.insertAdjacentHTML('beforeend', icon('crown'));
     els.leaveDesc.textContent = mode === 'host' ? t('hostLeaveText') : mode === 'alone' ? t('aloneLeaveText') : t('leaveText');
+    // A winner who hasn't sent their details yet would leave with a code that doesn't count.
+    if (currentState && currentState.yourPrize && currentState.yourPrize.needsDetails) {
+      els.leaveDesc.textContent += ` ${t('leavePrizeWarning')}`;
+    }
     els.hostLeave.hidden = mode !== 'host';
     els.leaveActions.hidden = mode === 'host';
     if (mode !== 'host') return;
@@ -1412,6 +1423,7 @@
   function askToLeave() {
     crownPick = null;
     renderLeaveModal();
+    updatePrizeLock();
     els.leaveModal.hidden = false;
     (leaveMode() === 'host' ? els.btnHostStay : els.btnLeaveCancel).focus();
   }
@@ -1627,6 +1639,64 @@
 
   // Final scores: the winner's prize code, or what happened to the prize.
   let prizeCardKey = '';
+  // The details a sponsor asks its winners for (full name, email, phone,
+  // city and delivery address), with consent to share them.
+  const WINNER_INPUTS = {
+    fullName: { label: 'wdFullName', tag: 'input', type: 'text', max: 80, autocomplete: 'name' },
+    email: { label: 'wdEmail', tag: 'input', type: 'email', max: 200, autocomplete: 'email' },
+    phone: { label: 'wdPhone', tag: 'input', type: 'tel', max: 30, autocomplete: 'tel', placeholder: '+123456789' },
+    address: { label: 'wdAddress', tag: 'textarea', max: 200, autocomplete: 'street-address' },
+  };
+  function winnerDetailsForm(fields, sponsorName) {
+    const form = document.createElement('form');
+    form.className = 'prize-email';
+    form.noValidate = true;
+    for (const f of fields) {
+      const spec = WINNER_INPUTS[f];
+      if (!spec) continue;
+      const label = document.createElement('label');
+      label.className = 'field';
+      label.innerHTML = `<span class="field-label"></span>`;
+      label.querySelector('span').textContent = t(spec.label);
+      const input = document.createElement(spec.tag);
+      if (spec.type) input.type = spec.type;
+      if (spec.tag === 'textarea') input.rows = 2;
+      input.maxLength = spec.max;
+      input.autocomplete = spec.autocomplete;
+      if (spec.placeholder) input.placeholder = spec.placeholder;
+      input.name = f;
+      label.appendChild(input);
+      form.appendChild(label);
+    }
+    form.insertAdjacentHTML('beforeend', `<label class="check-row"><input type="checkbox" name="consent" /><span></span></label><p class="error" hidden></p><button type="submit" class="btn btn-primary"></button>`);
+    form.querySelector('.check-row span').textContent = t('prizeDetailsConsent', { name: sponsorName });
+    form.querySelector('button').textContent = t('prizeDetailsSend');
+    // Typing keeps the room waiting for this winner (pinged at most every 10 s).
+    let lastPing = 0;
+    form.addEventListener('input', () => {
+      if (Date.now() - lastPing < 10000) return;
+      lastPing = Date.now();
+      api('prizeActivity').catch(() => {});
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = form.querySelector('.error');
+      const btn = form.querySelector('button');
+      err.hidden = true;
+      btn.disabled = true;
+      const details = {};
+      for (const f of fields) if (form.elements[f]) details[f] = form.elements[f].value;
+      try {
+        await api('claimPrize', { details, consent: form.elements.consent.checked });
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.hidden = false;
+        btn.disabled = false;
+      }
+    });
+    return form;
+  }
+
   function renderPrizeCard(state) {
     const sp = sponsorFor(state);
     const final = state.reveal && state.reveal.final;
@@ -1659,7 +1729,9 @@
     if (!r) {
       add('p', 'prize-text', t('prizeChecking'));
     } else if (mine) {
-      add('h3', 'prize-title', t('youWonPrize'));
+      add('h3', 'prize-title', t(mine.skipped ? 'prizeSkippedTitle' : 'youWonPrize'));
+    }
+    if (r && mine && !mine.skipped) {
       add('p', 'prize-text', t('yourCode', { prize }));
       const row = document.createElement('div');
       row.className = 'prize-code-row';
@@ -1671,33 +1743,36 @@
         navigator.clipboard.writeText(mine.code).then(() => showToast(t('codeCopied')), () => {});
       });
       card.appendChild(row);
-      if (sp && sp.collectEmail && !mine.emailSaved) {
-        const form = document.createElement('form');
-        form.className = 'prize-email';
-        form.innerHTML = `<p class="admin-note"></p><input type="email" required maxlength="200" autocomplete="email" /><label class="check-row"><input type="checkbox" /><span></span></label><p class="error" hidden></p><button type="submit" class="btn btn-primary"></button>`;
-        form.querySelector('.admin-note').textContent = t('prizeEmailAsk', { name });
-        form.querySelector('.check-row span').textContent = t('prizeEmailConsent', { name });
-        form.querySelector('button').textContent = t('prizeEmailSend');
-        form.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const err = form.querySelector('.error');
-          err.hidden = true;
-          try {
-            await api('claimPrize', {
-              email: form.querySelector('input[type="email"]').value,
-              consent: form.querySelector('input[type="checkbox"]').checked,
-            });
-          } catch (ex) {
-            err.textContent = ex.message;
-            err.hidden = false;
-          }
+    }
+    if (r && mine) {
+      // The code only counts once the winner has sent their details.
+      if ((mine.fields || []).length && !mine.skipped) {
+        const status = add('p', 'prize-status' + (mine.needsDetails ? ' is-pending' : ' is-active'), t(mine.needsDetails ? 'prizeCodePending' : 'prizeCodeActive', { name }));
+        status.setAttribute('role', 'status');
+      }
+      // The sponsor needs the winner's details to hand over the prize; the
+      // winner sends them or skips the prize, while the room waits for them.
+      if (mine.needsDetails) {
+        add('p', 'prize-text', t('prizeDetailsAsk', { name }));
+        card.appendChild(winnerDetailsForm(mine.fields || [], name));
+        const skip = document.createElement('button');
+        skip.type = 'button';
+        skip.className = 'text-btn prize-skip';
+        skip.textContent = t('prizeSkip');
+        skip.addEventListener('click', () => {
+          if (!window.confirm(t('prizeSkipConfirm', { name }))) return;
+          api('skipPrize').catch((err) => showToast(err.message));
         });
-        card.appendChild(form);
-      } else if (sp && sp.collectEmail) {
-        add('p', 'prize-text', t('prizeEmailSaved', { name }));
+        card.appendChild(skip);
+        add('p', 'prize-lock-note', '').id = 'winner-lock-note';
+        updatePrizeLock();
+      } else if (mine.skipped) {
+        add('p', 'prize-text', t('prizeSkipped'));
+      } else if (mine.detailsSaved) {
+        add('p', 'prize-text', t('prizeDetailsSaved', { name }));
       }
       if (sp && sp.url) card.appendChild(sponsorLinks(sp));
-    } else {
+    } else if (r) {
       const names = (r.winners || []).map((w) => w.name).join(t('and'));
       const text = {
         awarded: t('prizeAwarded', { names, prize, name }),
@@ -1709,6 +1784,62 @@
       if (sp) card.appendChild(sponsorLinks(sp));
     }
   }
+
+  // While a winner decides (send details or skip the prize), the room owner
+  // can't start a new game or close the room — until the winner has been
+  // idle for 50 s. Updated every second for the countdowns.
+  function updatePrizeLock() {
+    const state = currentState;
+    const final = state && state.reveal && state.reveal.final;
+    const pending = (final && state.prizeDetailsPending) || [];
+    const left = Math.max(0, (((state && state.prizeLockUntil) || 0) - serverNow()) / 1000);
+    const locked = pending.length > 0 && left > 0;
+    const names = state ? state.players.filter((p) => pending.includes(p.id)).map((p) => p.name).join(t('and')) : '';
+    const ownerNote = locked ? t('prizeLockOwner', { names, seconds: Math.ceil(left) }) : '';
+    els.btnPlayAgain.disabled = locked;
+    els.playAgainLock.hidden = !locked || els.btnPlayAgain.hidden;
+    els.playAgainLock.textContent = ownerNote;
+    els.btnCloseRoom.disabled = locked && pending.some((id) => id !== myPlayerId);
+    els.closeRoomLock.hidden = !els.btnCloseRoom.disabled;
+    els.closeRoomLock.textContent = ownerNote;
+    const winnerNote = document.getElementById('winner-lock-note');
+    if (winnerNote) {
+      winnerNote.textContent = pending.includes(myPlayerId)
+        ? left > 0
+          ? t('prizeLockWinner', { seconds: Math.ceil(left) })
+          : t('prizeLockOver')
+        : '';
+      winnerNote.classList.toggle('is-over', left <= 0);
+    }
+  }
+  setInterval(updatePrizeLock, 1000);
+
+  // 2 minutes before the room closes, players online see a countdown and
+  // why: nobody has played for 10 minutes (they can keep it open), or the
+  // room reaches its 6-hour limit.
+  function updateIdleBanner() {
+    const closesAt = currentState && myRoomCode ? currentState.closesAt : null;
+    const left = closesAt ? Math.max(0, Math.ceil((closesAt - serverNow()) / 1000)) : 0;
+    els.idleBanner.hidden = !closesAt;
+    if (!closesAt) return;
+    const time = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    const lifetime = currentState.closesReason === 'lifetime';
+    els.idleText.textContent = t(lifetime ? 'lifetimeWarning' : 'idleWarning', { time });
+    els.btnKeepOpen.hidden = lifetime;
+  }
+  setInterval(updateIdleBanner, 1000);
+  els.btnKeepOpen.addEventListener('click', () => {
+    els.btnKeepOpen.disabled = true;
+    api('keepAlive')
+      .then(() => {
+        els.idleBanner.hidden = true;
+        showToast(t('roomKeptOpen'));
+      })
+      .catch((err) => showToast(err.message))
+      .finally(() => {
+        els.btnKeepOpen.disabled = false;
+      });
+  });
 
   // ---------------- render ----------------
 
@@ -2112,6 +2243,7 @@
     els.revealWaitNote.hidden = amWinner;
     const amHost = state.hostId === myPlayerId;
     els.btnPlayAgain.hidden = !(reveal.final && amHost);
+    updatePrizeLock();
     if (reveal.final) {
       els.revealWaitNote.textContent = t('waitingForRestart');
       els.revealWaitNote.hidden = amHost;
@@ -2337,7 +2469,12 @@
       .catch((err) => {
         if (err.code === 'room_closed') showRoomClosed(err.closedKind, myRoomCode);
         else if (err.code === 'room_not_found') showRoomClosed('gone', myRoomCode);
-        else if (err.fatal || err.code === 'challenge_required' || err.code === 'game_started') resetToLanding(t('roomEnded'));
+        else if (err.code === 'left_out') {
+          // A game started while this player was away: they can join again later.
+          const code = myRoomCode;
+          resetToLanding(err.message);
+          els.codeInput.value = code || '';
+        } else if (err.fatal || err.code === 'challenge_required' || err.code === 'game_started') resetToLanding(t('roomEnded'));
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }

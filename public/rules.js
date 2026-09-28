@@ -22,8 +22,10 @@
       p6: 'One prize per player for the whole campaign, while codes last. The number of prizes is limited.',
       h7: 'Fair play',
       p7: 'Answers are checked automatically and scores are final. Jerttech may cancel a prize won by cheating — for example one person playing several players, sharing answers, or tampering with the game.',
-      h8: 'Your email',
-      p8: 'To receive the prize, the winner is asked for an email address. With the winner’s agreement, Jerttech shares it with {name} only to deliver the prize.',
+      h8: 'Your details',
+      p8: 'To receive the prize, the winner is asked for their {details} at the end of the game. A prize code is only valid once its winner has sent them: they are the proof of who won, and {name} checks each code against them. With the winner’s agreement, Jerttech keeps them as that proof, shares them with {name} to hand over the prize, and Jerttech or {name} may contact the winner about it, for example for feedback.',
+      details: { fullName: 'full name', email: 'email', phone: 'phone number', address: 'city and delivery address' },
+      and: ' and ',
       h12: 'Your answers in the sponsor’s categories',
       p12: 'Answers typed in the sponsor’s categories ({category}) are saved and shared with {name} so they can learn what players think of their products. Your name and avatar are not included.',
       h9: 'Good to know',
@@ -50,8 +52,10 @@
       p6: 'Un lot par joueur pour toute la campagne, dans la limite des codes disponibles. Le nombre de lots est limité.',
       h7: 'Fair-play',
       p7: 'Les réponses sont vérifiées automatiquement et les scores sont définitifs. Jerttech peut annuler un lot gagné en trichant — par exemple une même personne jouant plusieurs joueurs, le partage de réponses ou la manipulation du jeu.',
-      h8: 'Votre e-mail',
-      p8: 'Pour recevoir le lot, le gagnant doit indiquer une adresse e-mail. Avec son accord, Jerttech la transmet à {name} uniquement pour la remise du lot.',
+      h8: 'Vos coordonnées',
+      p8: 'Pour recevoir le lot, le gagnant doit indiquer à la fin de la partie : {details}. Un code n’est valable qu’une fois ces informations envoyées : elles prouvent qui a gagné, et {name} vérifie chaque code avec elles. Avec l’accord du gagnant, Jerttech les conserve comme preuve, les transmet à {name} pour la remise du lot, et Jerttech ou {name} peut contacter le gagnant à ce sujet, par exemple pour avoir son avis.',
+      details: { fullName: 'nom complet', email: 'e-mail', phone: 'numéro de téléphone', address: 'ville et adresse de livraison' },
+      and: ' et ',
       h12: 'Vos réponses dans les catégories du sponsor',
       p12: 'Les réponses données dans les catégories du sponsor ({category}) sont enregistrées et transmises à {name} pour l’aider à savoir ce que les joueurs pensent de ses produits. Votre nom et votre avatar ne sont pas inclus.',
       h9: 'Bon à savoir',
@@ -87,6 +91,10 @@
       players: c.minPlayers,
       rounds: c.minRounds,
       prize: (c.prize && (c.prize[lang] || c.prize.en || c.prize.fr)) || '—',
+      details: (() => {
+        const names = (c.winnerFields || (c.collectEmail ? ['email'] : [])).map((f) => T.details[f]).filter(Boolean);
+        return names.length > 1 ? `${names.slice(0, -1).join(', ')}${T.and}${names[names.length - 1]}` : names[0] || '';
+      })(),
       category: (c.categories || [])
         .map((cat) => cat.label[lang] || cat.label.en || cat.label.fr)
         .map((label) => (lang === 'fr' ? `« ${label} »` : `“${label}”`))
@@ -95,7 +103,8 @@
     add('h1', fill(T.title, vars));
     add('p', fill(T.intro, vars)).className = 'lead';
     const sections = ['1', '2', '3', '4', '5', '6', '7'];
-    if (c.collectEmail) sections.push('8');
+    const fields = c.winnerFields || (c.collectEmail ? ['email'] : []);
+    if (fields.length) sections.push('8');
     if (vars.category) sections.push('12');
     sections.push('9');
     for (const n of sections) {
