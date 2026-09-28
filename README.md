@@ -34,7 +34,10 @@ Open the URL it prints (usually `http://localhost:8888`).
 1. One player creates a room &mdash; choosing the number of rounds (1, 3, 5, 7
    or 11), round length and categories per round &mdash; and gets a
    4-character room code.
-2. Everyone else joins with that code and a name &mdash; own phone, own screen.
+2. Everyone picks a name and one of 12 original avatars (humans, alien,
+   cyborg, robot, animals, a cat hybrid, dragon, octopus, yeti &mdash; see
+   `public/avatars.js`), then joins with the code or an **invite link**
+   (`/?room=ABCD`, shared from the lobby).
 3. The host starts the game: everyone gets the same random letter and
    category list, and a synchronized countdown begins.
 4. When time's up, every player's answers are revealed to the whole group at

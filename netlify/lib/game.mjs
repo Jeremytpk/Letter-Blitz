@@ -105,6 +105,13 @@ function clampCategoryCount(n) {
   return Math.min(12, Math.max(4, Math.round(c)));
 }
 
+// Must match the ids in public/avatars.js.
+const AVATAR_IDS = new Set(['zuri', 'kofi', 'zog', 'nova', 'bolt', 'kitsu', 'hoot', 'bamboo', 'felis', 'draco', 'inky', 'yeti']);
+
+function cleanAvatar(avatar) {
+  return AVATAR_IDS.has(avatar) ? avatar : null;
+}
+
 function cleanName(name) {
   const n = String(name || '').trim().slice(0, 20);
   if (!n) throw new GameError('name_required', 'Enter a name first.');
@@ -217,6 +224,7 @@ function publicState(room, playerId, now) {
     players: players.map((p) => ({
       id: p.id,
       name: p.name,
+      avatar: p.avatar || null,
       connected: isOnline(p, now),
       totalScore: p.totalScore,
     })),
@@ -289,7 +297,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
   }
 
   const actions = {
-    async create({ name, playerId, settings = {} }) {
+    async create({ name, avatar, playerId, settings = {} }) {
       const n = cleanName(name);
       const id = playerId || randomId(12);
       const t = now();
@@ -306,7 +314,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           duration: clampDuration(settings.duration),
           categoriesPerRound: clampCategoryCount(settings.categoriesPerRound),
           totalRounds: clampTotalRounds(settings.totalRounds),
-          players: { [id]: { id, name: n, totalScore: 0, joinedAt: t, lastSeen: t } },
+          players: { [id]: { id, name: n, avatar: cleanAvatar(avatar), totalScore: 0, joinedAt: t, lastSeen: t } },
           answers: {},
           reveal: null,
           checkingSince: null,
@@ -318,13 +326,14 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       throw new GameError('create_failed', 'Could not create a room — please try again.');
     },
 
-    async join({ code, name, playerId }) {
+    async join({ code, name, avatar, playerId }) {
       let id = playerId;
       const room = await mutate(code, (r) => {
         const t = now();
         const existing = id && r.players[id];
         if (existing) {
           existing.lastSeen = t;
+          if (cleanAvatar(avatar)) existing.avatar = cleanAvatar(avatar);
           return;
         }
         if (r.phase !== 'lobby') throw new GameError('game_started', 'This game already started. Ask the host for a new room.');
@@ -335,7 +344,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           throw new GameError('name_taken', 'That name is taken in this room. Try another.');
         }
         id = id || randomId(12);
-        r.players[id] = { id, name: n, totalScore: 0, joinedAt: t, lastSeen: t };
+        r.players[id] = { id, name: n, avatar: cleanAvatar(avatar), totalScore: 0, joinedAt: t, lastSeen: t };
       });
       return { room, playerId: id };
     },

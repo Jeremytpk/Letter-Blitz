@@ -9,6 +9,7 @@
   const LS_NAME = 'lb_name';
   const LS_CODE = 'lb_code';
   const LS_PLAYER_ID = 'lb_player_id';
+  const LS_AVATAR = 'lb_avatar';
 
   const els = {
     views: {
@@ -19,6 +20,9 @@
       scores: document.getElementById('view-scores'),
     },
     nameInput: document.getElementById('name-input'),
+    avatarGrid: document.getElementById('avatar-grid'),
+    inviteBanner: document.getElementById('invite-banner'),
+    btnInvite: document.getElementById('btn-invite'),
     tabJoin: document.getElementById('tab-join'),
     tabCreate: document.getElementById('tab-create'),
     panelJoin: document.getElementById('panel-join'),
@@ -85,6 +89,10 @@
 
   let myPlayerId = localStorage.getItem(LS_PLAYER_ID) || null;
   let myRoomCode = localStorage.getItem(LS_CODE) || null;
+  let myAvatar = localStorage.getItem(LS_AVATAR) || null;
+  // Invite links look like https://…/?room=ABCD
+  const inviteCode = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
+  const invitedTo = /^[A-Z0-9]{4}$/.test(inviteCode) ? inviteCode : null;
   let currentState = null;
   let timerRAF = null;
   let renderedRound = 0;
@@ -205,10 +213,6 @@
     }
   }
 
-  function initials(name) {
-    return (name || '?').trim().slice(0, 2).toUpperCase();
-  }
-
   // ---------------- landing ----------------
 
   els.nameInput.value = localStorage.getItem(LS_NAME) || '';
@@ -240,6 +244,12 @@
       els.landingError.hidden = false;
       return null;
     }
+    if (!myAvatar) {
+      els.landingError.textContent = t('pickAvatar');
+      els.landingError.hidden = false;
+      els.avatarGrid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return null;
+    }
     els.landingError.hidden = true;
     localStorage.setItem(LS_NAME, name);
     return name;
@@ -255,7 +265,7 @@
       return;
     }
     myRoomCode = code;
-    enterRoom('join', { code, name });
+    enterRoom('join', { code, name, avatar: myAvatar });
   });
 
   els.btnCreate.addEventListener('click', () => {
@@ -264,6 +274,7 @@
     myRoomCode = null;
     enterRoom('create', {
       name,
+      avatar: myAvatar,
       settings: {
         totalRounds: selectedRounds,
         duration: Number(els.durationInput.value) * 1000,
@@ -277,6 +288,9 @@
     els.btnCreate.disabled = true;
     try {
       await api(action, payload);
+      // Drop ?room=… from the address bar once inside a room.
+      if (invitedTo) history.replaceState(null, '', location.pathname);
+      els.inviteBanner.hidden = true;
       schedulePoll();
     } catch (err) {
       showError(err.message);
@@ -345,8 +359,7 @@
       btn.setAttribute('role', 'radio');
       btn.setAttribute('aria-checked', String(p.id === crownPick));
       btn.className = 'crown-option' + (p.connected ? '' : ' is-offline');
-      btn.innerHTML = `<span class="player-avatar"></span><span class="crown-name"></span><span class="crown-mark">👑</span>`;
-      btn.querySelector('.player-avatar').textContent = initials(p.name);
+      btn.innerHTML = `${avatarHTML(p.avatar, p.name)}<span class="crown-name"></span><span class="crown-mark">👑</span>`;
       btn.querySelector('.crown-name').textContent = p.name + (p.connected ? '' : ` (${t('offline')})`);
       btn.addEventListener('click', () => {
         crownPick = p.id;
@@ -374,8 +387,10 @@
   function leaveRoom(options = {}) {
     closeLeaveModal();
     api('leave', options).catch(() => {});
-    for (const key of [LS_NAME, LS_CODE, LS_PLAYER_ID]) localStorage.removeItem(key);
+    for (const key of [LS_NAME, LS_CODE, LS_PLAYER_ID, LS_AVATAR]) localStorage.removeItem(key);
     myPlayerId = null;
+    myAvatar = null;
+    renderAvatarGrid();
     els.nameInput.value = '';
     els.codeInput.value = '';
     resetToLanding();
@@ -466,7 +481,7 @@
       li.className = 'player-row';
       const isHost = p.id === state.hostId;
       li.innerHTML = `
-        <span class="player-avatar">${initials(p.name)}</span>
+        <span class="player-avatar">${avatarHTML(p.avatar, p.name)}</span>
         <span class="player-name${p.connected ? '' : ' disconnected'}"></span>
         ${isHost ? `<span class="player-crown" title="${t('host')}">👑</span>` : ''}
       `;
@@ -550,7 +565,7 @@
       const done = info.filled >= info.total;
       const pip = document.createElement('div');
       pip.className = 'progress-pip' + (done ? ' is-done' : '') + (p.id === myPlayerId ? ' is-me' : '');
-      pip.innerHTML = `<span class="dot"></span><span></span>`;
+      pip.innerHTML = `<span class="dot"></span>${avatarHTML(p.avatar, p.name).replace('class="avatar', 'class="avatar avatar-sm')}<span></span>`;
       pip.querySelector('span:last-child').textContent = `${p.name} ${info.filled}/${info.total}`;
       els.progressRow.appendChild(pip);
     }
@@ -633,6 +648,7 @@
         const wrongCategory = entry.valid && !notFound && entry.fits === false;
         chip.className = 'answer-chip ' + (entry.valid && !notFound && !wrongCategory ? 'valid' : 'invalid');
         chip.innerHTML = `
+          ${avatarHTML(player.avatar, player.name).replace('class="avatar', 'class="avatar avatar-sm')}
           <span class="answer-chip-name"></span>
           <span class="answer-chip-text"></span>
           <span class="answer-chip-points"></span>
@@ -699,7 +715,8 @@
       const li = document.createElement('li');
       li.className = 'player-row' + (p.id === myPlayerId ? ' is-me' : '');
       li.innerHTML = `
-        <span class="player-avatar">${['🥇', '🥈', '🥉'][i] || initials(p.name)}</span>
+        <span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>
+        <span class="player-avatar">${avatarHTML(p.avatar, p.name)}</span>
         <span class="player-name"></span>
         <span class="round-points"></span>
         <span class="player-score"></span>
@@ -742,6 +759,65 @@
 
   setTab('join');
 
+  // ---------------- avatars ----------------
+
+  function renderAvatarGrid() {
+    els.avatarGrid.innerHTML = '';
+    for (const a of window.AVATARS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'avatar-option';
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', String(a.id === myAvatar));
+      btn.setAttribute('aria-label', `${a.name[window.i18n.lang]} — ${a.kind[window.i18n.lang]}`);
+      btn.title = a.kind[window.i18n.lang];
+      btn.innerHTML = `${avatarHTML(a.id)}<span></span>`;
+      btn.querySelector('span:last-child').textContent = a.name[window.i18n.lang];
+      btn.addEventListener('click', () => {
+        myAvatar = a.id;
+        localStorage.setItem(LS_AVATAR, a.id);
+        for (const b of els.avatarGrid.children) b.setAttribute('aria-checked', String(b === btn));
+        if (!els.landingError.hidden) els.landingError.hidden = true;
+      });
+      els.avatarGrid.appendChild(btn);
+    }
+  }
+  renderAvatarGrid();
+
+  // ---------------- invite links ----------------
+
+  function renderInviteBanner() {
+    if (!invitedTo || myRoomCode === invitedTo) return;
+    els.inviteBanner.hidden = false;
+    els.inviteBanner.innerHTML = t('invitedTo', { code: '<strong></strong>' });
+    els.inviteBanner.querySelector('strong').textContent = invitedTo;
+  }
+  if (invitedTo) {
+    els.codeInput.value = invitedTo;
+    setTab('join');
+    renderInviteBanner();
+  }
+
+  els.btnInvite.addEventListener('click', async () => {
+    if (!currentState) return;
+    const url = `${location.origin}/?room=${currentState.code}`;
+    const text = t('inviteShareText', { code: currentState.code });
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Letter Blitz', text, url });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // closed the share sheet
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast(t('inviteCopied'));
+    } catch {
+      window.prompt(t('inviteFriends'), url);
+    }
+  });
+
   // ---------------- language ----------------
 
   for (const btn of document.querySelectorAll('[data-lang]')) {
@@ -757,18 +833,21 @@
     }
     if (currentState) render(currentState);
     if (!els.landingError.hidden) els.landingError.hidden = true;
+    renderAvatarGrid();
+    if (!els.inviteBanner.hidden) renderInviteBanner();
   });
   window.i18n.applyStatic();
 
   // Saved on this device: name, room and player id. Rejoin automatically
   // after a refresh or when the phone comes back online.
   function rejoin() {
-    api('join', { code: myRoomCode })
+    api('join', { code: myRoomCode, avatar: myAvatar })
       .then(schedulePoll)
       .catch((err) => {
         if (err.fatal) resetToLanding(t('roomEnded'));
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }
-  if (myRoomCode && myPlayerId) rejoin();
+  // An invite to a different room wins over the saved one.
+  if (myRoomCode && myPlayerId && (!invitedTo || invitedTo === myRoomCode)) rejoin();
 })();

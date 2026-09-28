@@ -38,12 +38,19 @@
       <p class="hero-tag" data-i18n="tagline">Everyone gets the same letter. Fill every category before the clock hits zero.</p>
     </header>
 
+    <div class="invite-banner" id="invite-banner" hidden></div>
+
     <div class="card">
       <label class="field">
         <span class="field-label" data-i18n="yourName">Your name</span>
         <input id="name-input" type="text" maxlength="20" placeholder="e.g. Jamie" data-i18n-placeholder="namePlaceholder" autocomplete="off" />
       </label>
+      <div class="field">
+        <span class="field-label" id="avatar-label" data-i18n="chooseAvatar">Choose your avatar</span>
+        <div class="avatar-grid" id="avatar-grid" role="radiogroup" aria-labelledby="avatar-label"></div>
+      </div>
     </div>
+
 
     <div class="tabs" role="tablist">
       <button class="tab-btn is-active" id="tab-join" role="tab" aria-selected="true" data-i18n="joinTab">Join a room</button>
@@ -97,6 +104,7 @@
 
     <p class="room-settings" id="lobby-settings"></p>
     <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
+    <button class="btn btn-secondary invite-btn" id="btn-invite"><span aria-hidden="true">🔗</span> <span data-i18n="inviteFriends">Invite friends with a link</span></button>
 
     <ul class="player-list" id="lobby-players"></ul>
 
@@ -210,6 +218,7 @@
   </div>
 </div>
 
+<script src="/avatars.js"></script>
 <script src="/i18n.js"></script>
 <script src="/app.js"></script>
 </body>

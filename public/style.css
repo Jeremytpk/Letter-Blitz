@@ -319,16 +319,77 @@ input[type="range"] {
   padding: 12px 14px;
 }
 
-.player-avatar {
-  width: 32px; height: 32px;
+.player-avatar { display: flex; flex-shrink: 0; }
+
+/* Round avatar frame; size set by the container (default 36px). */
+.avatar {
+  display: block;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
   background: var(--surface-2);
-  color: var(--text);
-  display: flex; align-items: center; justify-content: center;
+}
+.avatar svg { display: block; width: 100%; height: 100%; }
+.avatar-initials {
+  display: grid;
+  place-items: center;
   font-weight: 800;
   font-size: 13px;
-  flex-shrink: 0;
+  color: var(--text);
 }
+.avatar-sm { width: 22px; height: 22px; }
+.avatar-sm.avatar-initials { font-size: 9px; }
+
+.rank { width: 22px; text-align: center; font-size: 16px; flex-shrink: 0; }
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.avatar-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  border-radius: 14px;
+  border: 1.5px solid transparent;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+}
+.avatar-option .avatar { width: 56px; height: 56px; }
+.avatar-option:hover { transform: translateY(-2px); }
+.avatar-option[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+@media (max-width: 340px) {
+  .avatar-option .avatar { width: 46px; height: 46px; }
+}
+
+.invite-banner {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+.invite-banner strong { font-family: 'JetBrains Mono', monospace; color: var(--accent); letter-spacing: 0.1em; }
+
+.invite-btn { display: flex; align-items: center; justify-content: center; gap: 6px; }
 
 .player-name { font-weight: 700; flex: 1; }
 .player-name.disconnected { color: var(--text-dim); font-style: italic; }
