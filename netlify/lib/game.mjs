@@ -45,7 +45,13 @@ const CHECK_TAKEOVER_MS = 20000; // if a checker dies, another poll takes over
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 const CHECK_TIME_LIMIT_MS = 7000; // Netlify stops a function after 10s
 
-export class GameError extends Error {}
+// `code` lets each player's page show the message in their own language.
+export class GameError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -93,7 +99,7 @@ function clampCategoryCount(n) {
 
 function cleanName(name) {
   const n = String(name || '').trim().slice(0, 20);
-  if (!n) throw new GameError('Enter a name first.');
+  if (!n) throw new GameError('name_required', 'Enter a name first.');
   return n;
 }
 
@@ -217,7 +223,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
   async function mutate(code, fn) {
     for (let attempt = 0; attempt < 12; attempt++) {
       const loaded = await load(code);
-      if (!loaded) throw new GameError('Room not found. Check the code.');
+      if (!loaded) throw new GameError('room_not_found', 'Room not found. Check the code.');
       const { room, etag } = loaded;
       const result = fn(room);
       if (result === false) return room;
@@ -225,7 +231,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       if (write.modified) return room;
       await new Promise((r) => setTimeout(r, 30 + Math.random() * 120 * (attempt + 1)));
     }
-    throw new GameError('The room is busy — please try again.');
+    throw new GameError('busy', 'The room is busy — please try again.');
   }
 
   async function finishRound(code, round) {
@@ -291,7 +297,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         const write = await store.setJSON(roomKey(code), room, { onlyIfNew: true });
         if (write.modified) return { room, playerId: id };
       }
-      throw new GameError('Could not create a room — please try again.');
+      throw new GameError('create_failed', 'Could not create a room — please try again.');
     },
 
     async join({ code, name, playerId }) {
@@ -303,12 +309,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           existing.lastSeen = t;
           return;
         }
-        if (r.phase !== 'lobby') throw new GameError('This game already started. Ask the host for a new room.');
+        if (r.phase !== 'lobby') throw new GameError('game_started', 'This game already started. Ask the host for a new room.');
         const n = cleanName(name);
         const online = Object.values(r.players).filter((p) => isOnline(p, t));
-        if (online.length >= MAX_PLAYERS) throw new GameError('Room is full.');
+        if (online.length >= MAX_PLAYERS) throw new GameError('room_full', 'Room is full.');
         if (online.some((p) => p.name.toLowerCase() === n.toLowerCase())) {
-          throw new GameError('That name is taken in this room. Try another.');
+          throw new GameError('name_taken', 'That name is taken in this room. Try another.');
         }
         id = id || randomId(12);
         r.players[id] = { id, name: n, totalScore: 0, joinedAt: t, lastSeen: t };
@@ -318,11 +324,11 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
 
     async poll({ code, playerId }) {
       const loaded = await load(code);
-      if (!loaded) throw new GameError('Room not found. Check the code.');
+      if (!loaded) throw new GameError('room_not_found', 'Room not found. Check the code.');
       let { room } = loaded;
       const t = now();
       const me = room.players[playerId];
-      if (!me) throw new GameError('You are no longer in this room.');
+      if (!me) throw new GameError('not_in_room', 'You are no longer in this room.');
 
       const timeUp = room.phase === 'playing' && t >= room.startedAt + room.duration + ANSWER_GRACE_MS;
       const stale = room.phase === 'checking' && t - room.checkingSince > CHECK_TAKEOVER_MS;
@@ -340,7 +346,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     async answers({ code, playerId, round, answers }) {
       const room = await mutate(code, (r) => {
         const t = now();
-        if (!r.players[playerId]) throw new GameError('You are no longer in this room.');
+        if (!r.players[playerId]) throw new GameError('not_in_room', 'You are no longer in this room.');
         if (r.phase !== 'playing' || r.round !== round) return false;
         if (t < r.startedAt || t > r.startedAt + r.duration + ANSWER_GRACE_MS) return false;
         const clean = {};
@@ -357,10 +363,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     async start({ code, playerId }) {
       const room = await mutate(code, (r) => {
         const t = now();
-        if (playerId !== effectiveHostId(r, t)) throw new GameError('Only the host can start the game.');
+        if (playerId !== effectiveHostId(r, t)) throw new GameError('host_only', 'Only the host can start the game.');
         if (r.phase !== 'lobby') return false;
         const online = Object.values(r.players).filter((p) => isOnline(p, t));
-        if (online.length < MIN_PLAYERS_TO_START) throw new GameError('Need at least 2 players to start.');
+        if (online.length < MIN_PLAYERS_TO_START) throw new GameError('need_players', 'Need at least 2 players to start.');
         startRound(r, randomLetter(), t);
       });
       return { room, playerId };
@@ -368,14 +374,14 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
 
     async chooseLetter({ code, playerId, letter }) {
       const L = String(letter || '').toUpperCase();
-      if (!LETTERS.includes(L)) throw new GameError('Pick a valid letter.');
+      if (!LETTERS.includes(L)) throw new GameError('invalid_letter', 'Pick a valid letter.');
       const room = await mutate(code, (r) => {
         const t = now();
         if (r.phase !== 'reveal') return false;
         const winner = r.players[r.reveal.winnerId];
         const winnerAway = !winner || !isOnline(winner, t);
         const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
-        if (!allowed) throw new GameError('Only the round winner picks the next letter.');
+        if (!allowed) throw new GameError('winner_only', 'Only the round winner picks the next letter.');
         startRound(r, L, t);
       });
       return { room, playerId };
@@ -393,7 +399,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
 
   return async function handle(action, body) {
     const fn = actions[action];
-    if (!fn) throw new GameError('Unknown action.');
+    if (!fn) throw new GameError('unknown_action', 'Unknown action.');
     const payload = { ...body, code: String(body.code || '').trim().toUpperCase() };
     const { room, playerId } = await fn(payload);
     const t = now();

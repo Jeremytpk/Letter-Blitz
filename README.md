@@ -58,6 +58,10 @@ Open the URL it prints (usually `http://localhost:8888`).
 - Names must match exactly (accents and capitals don't matter); car models
   may be partial ("Corolla"). If Wikidata is slow or unreachable, unchecked
   answers get the benefit of the doubt.
+- The site is in English and French: each player picks a language with the
+  EN / FR switch (saved on their device; first visit follows the phone's
+  language). All text is in `public/i18n.js`; the server sends error codes
+  that each page translates.
 - Each phone remembers its player name and room, so a refresh or lost
   connection rejoins automatically. Tapping **Leave** (after a confirmation)
   removes the player and erases that saved data.

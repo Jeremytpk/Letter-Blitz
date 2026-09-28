@@ -16,7 +16,9 @@ export default async (req) => {
   try {
     return Response.json(await handle(body.action, body));
   } catch (err) {
-    if (err instanceof GameError) return Response.json({ error: err.message, now: Date.now() }, { status: 400 });
+    if (err instanceof GameError) {
+      return Response.json({ error: err.message, errorCode: err.code, now: Date.now() }, { status: 400 });
+    }
     console.error(err);
     return Response.json({ error: 'Something went wrong. Try again.' }, { status: 500 });
   }

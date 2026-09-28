@@ -32,41 +32,42 @@
 
   <!-- ===================== LANDING ===================== -->
   <section class="view" id="view-landing">
+    <div class="landing-top"><div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div></div>
     <header class="hero">
       <h1 class="hero-logo"><img src="/logo.jpg" alt="Letter Blitz" width="1200" height="655" /></h1>
-      <p class="hero-tag">Everyone gets the same letter. Fill every category before the clock hits zero.</p>
+      <p class="hero-tag" data-i18n="tagline">Everyone gets the same letter. Fill every category before the clock hits zero.</p>
     </header>
 
     <div class="card">
       <label class="field">
-        <span class="field-label">Your name</span>
-        <input id="name-input" type="text" maxlength="20" placeholder="e.g. Jamie" autocomplete="off" />
+        <span class="field-label" data-i18n="yourName">Your name</span>
+        <input id="name-input" type="text" maxlength="20" placeholder="e.g. Jamie" data-i18n-placeholder="namePlaceholder" autocomplete="off" />
       </label>
     </div>
 
     <div class="tabs" role="tablist">
-      <button class="tab-btn is-active" id="tab-join" role="tab" aria-selected="true">Join a room</button>
-      <button class="tab-btn" id="tab-create" role="tab" aria-selected="false">Create a room</button>
+      <button class="tab-btn is-active" id="tab-join" role="tab" aria-selected="true" data-i18n="joinTab">Join a room</button>
+      <button class="tab-btn" id="tab-create" role="tab" aria-selected="false" data-i18n="createTab">Create a room</button>
     </div>
 
     <div class="card" id="panel-join">
       <label class="field">
-        <span class="field-label">Room code</span>
+        <span class="field-label" data-i18n="roomCode">Room code</span>
         <input id="code-input" type="text" maxlength="4" placeholder="ABCD" autocomplete="off" class="code-input" />
       </label>
-      <button class="btn btn-primary" id="btn-join">Join room</button>
+      <button class="btn btn-primary" id="btn-join" data-i18n="joinRoom">Join room</button>
     </div>
 
     <div class="card" id="panel-create" hidden>
       <label class="field">
-        <span class="field-label">Round length: <span id="duration-out">90</span>s</span>
+        <span class="field-label"><span data-i18n="roundLength">Round length:</span> <span id="duration-out">90</span><span data-i18n="seconds">s</span></span>
         <input id="duration-input" type="range" min="20" max="180" step="10" value="90" />
       </label>
       <label class="field">
-        <span class="field-label">Categories per round: <span id="catcount-out">9</span></span>
+        <span class="field-label"><span data-i18n="categoriesPerRound">Categories per round:</span> <span id="catcount-out">9</span></span>
         <input id="catcount-input" type="range" min="4" max="12" step="1" value="9" />
       </label>
-      <button class="btn btn-primary" id="btn-create">Create room</button>
+      <button class="btn btn-primary" id="btn-create" data-i18n="createRoom">Create room</button>
     </div>
 
     <p class="error" id="landing-error" hidden></p>
@@ -76,16 +77,19 @@
   <section class="view" id="view-lobby" hidden>
     <header class="topbar">
       <div class="room-code" id="lobby-code">----</div>
-      <button class="icon-btn" id="btn-leave-lobby" title="Leave room">Leave</button>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+        <button class="icon-btn" id="btn-leave-lobby" title="Leave room" data-i18n="leave" data-i18n-title="leaveRoom">Leave</button>
+      </div>
     </header>
 
-    <p class="lobby-hint">Share this code &mdash; everyone joins from their own phone.</p>
+    <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
 
     <ul class="player-list" id="lobby-players"></ul>
 
     <div class="lobby-actions">
       <button class="btn btn-primary" id="btn-start" hidden>Start game</button>
-      <p class="waiting-note" id="lobby-wait-note">Waiting for the host to start&hellip;</p>
+      <p class="waiting-note" id="lobby-wait-note" data-i18n="waitingForHost">Waiting for the host to start&hellip;</p>
     </div>
   </section>
 
@@ -93,13 +97,16 @@
   <section class="view" id="view-playing" hidden>
     <header class="topbar">
       <div class="room-code small" id="playing-code">----</div>
-      <div class="timer" id="timer-text">1:00</div>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+        <div class="timer" id="timer-text">1:00</div>
+      </div>
     </header>
 
     <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
 
     <div class="letter-hero">
-      <div class="letter-hero-label">Your letter</div>
+      <div class="letter-hero-label" data-i18n="yourLetter">Your letter</div>
       <div class="letter-hero-letter" id="round-letter">L</div>
     </div>
 
@@ -112,7 +119,10 @@
   <section class="view" id="view-reveal" hidden>
     <header class="topbar">
       <div class="room-code small" id="reveal-code">----</div>
-      <button class="icon-btn" id="btn-leave-reveal" title="Leave room">Leave</button>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+        <button class="icon-btn" id="btn-leave-reveal" title="Leave room" data-i18n="leave" data-i18n-title="leaveRoom">Leave</button>
+      </div>
     </header>
 
     <div class="reveal-banner" id="reveal-banner"></div>
@@ -120,7 +130,7 @@
     <div class="reveal-categories" id="reveal-categories"></div>
 
     <div class="sticky-action">
-      <button class="btn btn-primary" id="btn-show-scores">See scores &rarr;</button>
+      <button class="btn btn-primary" id="btn-show-scores" data-i18n="seeScores">See scores &rarr;</button>
     </div>
   </section>
 
@@ -128,7 +138,10 @@
   <section class="view" id="view-scores" hidden>
     <header class="topbar">
       <div class="room-code small" id="scores-code">----</div>
-      <button class="icon-btn" id="btn-leave-scores" title="Leave room">Leave</button>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+        <button class="icon-btn" id="btn-leave-scores" title="Leave room" data-i18n="leave" data-i18n-title="leaveRoom">Leave</button>
+      </div>
     </header>
 
     <div class="scores-hero">
@@ -137,17 +150,17 @@
     </div>
 
     <div class="leaderboard" id="leaderboard">
-      <h2 class="leaderboard-title">Scores</h2>
+      <h2 class="leaderboard-title" data-i18n="scores">Scores</h2>
       <ul class="leaderboard-list" id="leaderboard-list"></ul>
     </div>
 
     <div class="letter-picker" id="letter-picker" hidden>
-      <p class="letter-picker-title">You won the round &mdash; pick the next letter</p>
+      <p class="letter-picker-title" data-i18n="pickNextLetter">You won the round &mdash; pick the next letter</p>
       <div class="letter-grid" id="letter-grid"></div>
     </div>
     <p class="waiting-note" id="reveal-wait-note" hidden></p>
 
-    <button class="btn btn-secondary" id="btn-show-answers">&larr; Back to answers</button>
+    <button class="btn btn-secondary" id="btn-show-answers" data-i18n="backToAnswers">&larr; Back to answers</button>
   </section>
 
 </div>
@@ -156,18 +169,19 @@
 
 <div class="modal-backdrop" id="leave-modal" hidden>
   <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="leave-title" aria-describedby="leave-desc">
-    <h2 class="modal-title" id="leave-title">Leave this room?</h2>
-    <p class="modal-text" id="leave-desc">
+    <h2 class="modal-title" id="leave-title" data-i18n="leaveTitle">Leave this room?</h2>
+    <p class="modal-text" id="leave-desc" data-i18n="leaveText">
       This will erase all your data on this device &mdash; your username, your room and your scores.
       You won't be able to come back to this game.
     </p>
     <div class="modal-actions">
-      <button class="btn btn-secondary" id="btn-leave-cancel">Stay</button>
-      <button class="btn btn-danger" id="btn-leave-confirm">Leave &amp; erase</button>
+      <button class="btn btn-secondary" id="btn-leave-cancel" data-i18n="stay">Stay</button>
+      <button class="btn btn-danger" id="btn-leave-confirm" data-i18n="leaveAndErase">Leave &amp; erase</button>
     </div>
   </div>
 </div>
 
+<script src="/i18n.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

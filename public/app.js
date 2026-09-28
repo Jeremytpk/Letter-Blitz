@@ -1,4 +1,5 @@
 (() => {
+  const { t, categoryLabel } = window.i18n;
   // The game runs in a Netlify Function (netlify/functions/game.mjs). Every
   // phone polls it about once a second to stay in sync.
   const API_URL = '/api/game';
@@ -98,14 +99,15 @@
       });
       data = await res.json();
     } catch {
-      throw new Error("Can't reach the game. Check your connection.");
+      throw new Error(t('cantReach'));
     }
     if (typeof data.now === 'number') {
       clockOffset = data.now - (sentAt + Date.now()) / 2;
     }
     if (!res.ok) {
-      const err = new Error(data.error || 'Something went wrong.');
-      err.fatal = res.status === 400 && /no longer in this room|Room not found/.test(data.error || '');
+      const code = data.errorCode;
+      const err = new Error(code ? t(`err_${code}`) : t('somethingWrong'));
+      err.fatal = code === 'room_not_found' || code === 'not_in_room';
       throw err;
     }
     if (data.playerId) {
@@ -218,7 +220,7 @@
   function landingName() {
     const name = els.nameInput.value.trim();
     if (!name) {
-      els.landingError.textContent = 'Enter a name first.';
+      els.landingError.textContent = t('enterName');
       els.landingError.hidden = false;
       return null;
     }
@@ -232,7 +234,7 @@
     if (!name) return;
     const code = els.codeInput.value.trim().toUpperCase();
     if (code.length !== 4) {
-      els.landingError.textContent = 'Room codes are 4 letters/numbers.';
+      els.landingError.textContent = t('codeFormat');
       els.landingError.hidden = false;
       return;
     }
@@ -301,7 +303,7 @@
     els.nameInput.value = '';
     els.codeInput.value = '';
     resetToLanding();
-    showToast('You left the room. Your data was erased.');
+    showToast(t('leftToast'));
   }
 
   els.btnLeaveCancel.addEventListener('click', closeLeaveModal);
@@ -366,9 +368,10 @@
       li.innerHTML = `
         <span class="player-avatar">${initials(p.name)}</span>
         <span class="player-name${p.connected ? '' : ' disconnected'}"></span>
-        ${isHost ? '<span class="player-crown" title="Host">👑</span>' : ''}
+        ${isHost ? `<span class="player-crown" title="${t('host')}">👑</span>` : ''}
       `;
-      li.querySelector('.player-name').textContent = p.name + (p.connected ? '' : ' (left)');
+      li.querySelector('.player-name').textContent =
+        p.name + (p.id === myPlayerId ? ` (${t('you')})` : '') + (p.connected ? '' : ` (${t('left')})`);
       els.lobbyPlayers.appendChild(li);
     }
 
@@ -376,7 +379,7 @@
     const connectedCount = state.players.filter((p) => p.connected).length;
     els.btnStart.hidden = !isHost;
     els.btnStart.disabled = connectedCount < 2;
-    els.btnStart.textContent = connectedCount < 2 ? 'Waiting for more players…' : 'Start game';
+    els.btnStart.textContent = connectedCount < 2 ? t('waitingForPlayers') : t('startGame');
     els.lobbyWaitNote.hidden = isHost;
   }
 
@@ -409,9 +412,10 @@
             <input class="category-input" type="text" maxlength="60" autocomplete="off" autocapitalize="words" />
           </div>
         `;
-        row.querySelector('.category-label').textContent = cat.label;
+        row.dataset.catId = cat.id;
+        row.querySelector('.category-label').textContent = categoryLabel(cat);
         const input = row.querySelector('.category-input');
-        input.placeholder = `Starts with ${state.letter}…`;
+        input.placeholder = t('startsWith', { letter: state.letter });
         input.value = (state.yourAnswers || {})[cat.id] || '';
         input.addEventListener('input', queueAnswerSync);
         answerInputs.set(cat.id, input);
@@ -427,10 +431,11 @@
 
   function renderChecking() {
     cancelAnimationFrame(timerRAF);
-    els.timerText.textContent = 'Checking…';
+    els.timerText.textContent = t('checking');
     els.timerFill.style.width = '0%';
     for (const input of answerInputs.values()) input.disabled = true;
-    els.progressRow.innerHTML = '<div class="checking-note">⏱ Time\'s up! Checking answers online…</div>';
+    els.progressRow.innerHTML = '<div class="checking-note"></div>';
+    els.progressRow.firstChild.textContent = t('checkingNote');
   }
 
   function renderProgress(progress) {
@@ -494,8 +499,8 @@
     const roundScore = reveal.roundScores[myPlayerId] || 0;
 
     els.revealBanner.textContent = winner
-      ? `🏆 ${winner.name} won round ${state.round} with ${reveal.roundScores[winner.id]} pts — you scored ${roundScore}`
-      : `Round ${state.round} results`;
+      ? t('roundWon', { name: winner.name, round: state.round, points: reveal.roundScores[winner.id], mine: roundScore })
+      : t('roundResults', { round: state.round });
 
     els.revealCategories.innerHTML = '';
     for (const cat of reveal.perCategory) {
@@ -503,7 +508,7 @@
       block.className = 'reveal-cat';
       const title = document.createElement('div');
       title.className = 'reveal-cat-title';
-      title.textContent = cat.label;
+      title.textContent = categoryLabel({ id: cat.catId, label: cat.label });
       block.appendChild(title);
 
       const answers = document.createElement('div');
@@ -527,18 +532,18 @@
         if (hasText) {
           textEl.textContent = entry.text;
         } else {
-          textEl.textContent = 'no answer';
+          textEl.textContent = t('noAnswer');
           textEl.classList.add('answer-chip-empty');
         }
         let pointsLabel = '—';
         if (entry.points > 0) pointsLabel = `+${entry.points}`;
-        else if (notFound) pointsLabel = 'not found';
-        else if (wrongCategory) pointsLabel = 'wrong category';
-        else if (!entry.valid && hasText) pointsLabel = 'wrong letter';
-        else if (hasText) pointsLabel = 'dupe';
+        else if (notFound) pointsLabel = t('notFound');
+        else if (wrongCategory) pointsLabel = t('wrongCategory');
+        else if (!entry.valid && hasText) pointsLabel = t('wrongLetter');
+        else if (hasText) pointsLabel = t('dupe');
         chip.querySelector('.answer-chip-points').textContent = pointsLabel;
-        if (notFound) chip.title = "Couldn't find this online — marked as doesn't exist";
-        if (wrongCategory) chip.title = `Found online, but it isn't a ${cat.label.toLowerCase()}`;
+        if (notFound) chip.title = t('notFoundHint');
+        if (wrongCategory) chip.title = t('wrongCategoryHint', { category: categoryLabel({ id: cat.catId, label: cat.label }) });
         answers.appendChild(chip);
       }
       block.appendChild(answers);
@@ -557,10 +562,13 @@
     const winnerAway = !winner || !winner.connected;
     const amWinner = reveal.winnerId === myPlayerId || (winnerAway && state.hostId === myPlayerId);
 
-    els.scoresRound.textContent = `Round ${state.round} · letter ${reveal.letter}`;
-    els.scoresWinner.textContent = winner
-      ? `🏆 ${winner.id === myPlayerId ? 'You' : winner.name} won with ${reveal.roundScores[winner.id]} pts`
-      : 'Round over';
+    els.scoresRound.textContent = t('roundLetter', { round: state.round, letter: reveal.letter });
+    const winPoints = winner ? reveal.roundScores[winner.id] : 0;
+    els.scoresWinner.textContent = !winner
+      ? t('roundOver')
+      : winner.id === myPlayerId
+        ? t('youWonWith', { points: winPoints })
+        : t('playerWonWith', { name: winner.name, points: winPoints });
 
     els.leaderboardList.innerHTML = '';
     const ranked = [...state.players].sort((a, b) => b.totalScore - a.totalScore);
@@ -573,16 +581,16 @@
         <span class="round-points"></span>
         <span class="player-score"></span>
       `;
-      li.querySelector('.player-name').textContent = p.name + (p.id === myPlayerId ? ' (you)' : '');
+      li.querySelector('.player-name').textContent = p.name + (p.id === myPlayerId ? ` (${t('you')})` : '');
       li.querySelector('.round-points').textContent = `+${reveal.roundScores[p.id] || 0}`;
-      li.querySelector('.player-score').textContent = `${p.totalScore} pts`;
+      li.querySelector('.player-score').textContent = t('pts', { points: p.totalScore });
       els.leaderboardList.appendChild(li);
     });
 
     els.letterPicker.hidden = !amWinner;
     els.revealWaitNote.hidden = amWinner;
     if (!amWinner && winner) {
-      els.revealWaitNote.textContent = `Waiting for ${winner.name} to pick the next letter…`;
+      els.revealWaitNote.textContent = t('waitingForPick', { name: winner.name });
       els.revealWaitNote.hidden = false;
     }
 
@@ -606,13 +614,31 @@
 
   setTab('join');
 
+  // ---------------- language ----------------
+
+  for (const btn of document.querySelectorAll('[data-lang]')) {
+    btn.addEventListener('click', () => window.i18n.setLang(btn.dataset.lang));
+  }
+  window.i18n.onChange(() => {
+    // Relabel the answer fields in place so nothing typed is lost.
+    for (const row of els.categoryList.querySelectorAll('.category-row')) {
+      row.querySelector('.category-label').textContent = categoryLabel({ id: row.dataset.catId });
+      if (currentState && currentState.letter) {
+        row.querySelector('.category-input').placeholder = t('startsWith', { letter: currentState.letter });
+      }
+    }
+    if (currentState) render(currentState);
+    if (!els.landingError.hidden) els.landingError.hidden = true;
+  });
+  window.i18n.applyStatic();
+
   // Saved on this device: name, room and player id. Rejoin automatically
   // after a refresh or when the phone comes back online.
   function rejoin() {
     api('join', { code: myRoomCode })
       .then(schedulePoll)
       .catch((err) => {
-        if (err.fatal) resetToLanding('That room has ended.');
+        if (err.fatal) resetToLanding(t('roomEnded'));
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }
