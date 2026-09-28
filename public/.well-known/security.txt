@@ -1,0 +1,5 @@
+# Found a security problem in Letter Blitz? Please tell us privately.
+Contact: https://letterblitz.world/contact.html
+Expires: 2027-09-28T00:00:00.000Z
+Preferred-Languages: en, fr
+Canonical: https://letterblitz.world/.well-known/security.txt

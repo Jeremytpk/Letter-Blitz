@@ -13,6 +13,7 @@ import { createStats } from './stats.mjs';
 import { createAdmin, isAdminEntry } from './admin.mjs';
 import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv } from './archive.mjs';
 import { createInbox, InboxError } from './inbox.mjs';
+import { cleanText, isPlayerId, isRoomCode, underLimit } from './security.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -137,7 +138,7 @@ function cleanAvatar(avatar) {
 }
 
 function cleanName(name) {
-  const n = String(name || '').trim().slice(0, 20);
+  const n = cleanText(name, { max: 20 });
   if (!n) throw new GameError('name_required', 'Enter a name first.');
   return n;
 }
@@ -348,9 +349,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
   }
 
   const actions = {
-    async create({ name, avatar, playerId, settings = {} }) {
+    async create({ name, avatar, playerId, settings = {} }, meta) {
       checkAdminEntry(name, avatar);
       const n = cleanName(name);
+      if (!(await underLimit(store, 'create', meta.ip, 30, 3600000, now()))) {
+        throw new GameError('too_many', 'Too many rooms created. Try again later.');
+      }
       const id = playerId || randomId(12);
       const t = now();
       for (let i = 0; i < 20; i++) {
@@ -381,9 +385,13 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       throw new GameError('create_failed', 'Could not create a room — please try again.');
     },
 
-    async join({ code, name, avatar, playerId }) {
+    async join({ code, name, avatar, playerId }, meta) {
       if (!(playerId && name === undefined)) checkAdminEntry(name, avatar);
       let id = playerId;
+      const rejoining = playerId && name === undefined;
+      if (!rejoining && !(await underLimit(store, 'join', meta.ip, 60, 3600000, now()))) {
+        throw new GameError('too_many', 'Too many attempts. Try again later.');
+      }
       const room = await mutate(code, (r) => {
         const t = now();
         const existing = id && r.players[id];
@@ -434,7 +442,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (t < r.startedAt || t > r.startedAt + r.duration + ANSWER_GRACE_MS) return false;
         const clean = {};
         for (const cat of r.categories) {
-          const text = String((answers || {})[cat.id] || '').slice(0, 60);
+          const text = cleanText((answers || {})[cat.id], { max: 60 });
           if (text) clean[cat.id] = text;
         }
         r.answers[playerId] = clean;
@@ -481,7 +489,8 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
 
     // One per browser session; visitorId is a random id kept on the device.
-    async visit({ visitorId }) {
+    async visit({ visitorId }, meta) {
+      if (!(await underLimit(store, 'visit', meta.ip, 30, 3600000, now()))) return { room: null, playerId: null };
       const first = await stats.firstTime('visitor', visitorId);
       await stats.bump({ visits: 1, uniqueVisitors: first ? 1 : 0 });
       return { room: null, playerId: null };
@@ -492,6 +501,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         const token = await admin.login(String(password || ''), String(passcode || ''), meta.ip);
         return { room: null, playerId: null, extra: { adminToken: token } };
       } catch (err) {
+        await new Promise((r) => setTimeout(r, 400 + Math.random() * 400)); // slow down guessing
         if (err.code === 'admin_locked') throw new GameError('admin_locked', 'Too many attempts. Try again later.');
         throw new GameError('admin_denied', 'Wrong password or passcode.');
       }
@@ -552,7 +562,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
 
     // Check a room exists and is open without joining it (used for invite links).
-    async peek({ code }) {
+    async peek({ code }, meta) {
+      if (!(await underLimit(store, 'peek', meta.ip, 120, 3600000, now()))) {
+        throw new GameError('too_many', 'Too many attempts. Try again later.');
+      }
       if (!(await load(code))) throw new GameError('room_not_found', 'Room not found. Check the code.');
       return { room: null, playerId: null };
     },
@@ -598,7 +611,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           return;
         }
         if (isHost && newHostId) {
-          if (newHostId === playerId || !r.players[newHostId]) {
+          if (newHostId === playerId || !isPlayerId(newHostId) || !Object.hasOwn(r.players, newHostId)) {
             throw new GameError('invalid_new_host', 'Pick a player who is still in the room.');
           }
           r.hostId = newHostId;
@@ -678,9 +691,14 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
   }
 
   return async function handle(action, body, meta = {}) {
-    const fn = actions[action];
+    const fn = Object.hasOwn(actions, action) ? actions[action] : null;
     if (!fn) throw new GameError('unknown_action', 'Unknown action.');
-    const payload = { ...body, code: String(body.code || '').trim().toUpperCase() };
+    const code = String(body.code || '').trim().toUpperCase();
+    const payload = {
+      ...body,
+      code: isRoomCode(code) ? code : '',
+      playerId: isPlayerId(body.playerId) ? body.playerId : undefined,
+    };
     const { room, playerId, extra } = await fn(payload, meta);
     const t = now();
     return { now: t, playerId, state: room ? publicState(room, playerId, t) : null, ...extra };

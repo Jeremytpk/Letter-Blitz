@@ -57,7 +57,10 @@ export async function deleteArchive(store, before) {
 // ---- CSV -----------------------------------------------------------------
 
 const cell = (v) => {
-  const s = v === null || v === undefined ? '' : String(v);
+  let s = v === null || v === undefined ? '' : String(v);
+  // Text starting with = + - @ would run as a formula in Excel/Sheets
+  // (CSV injection); a leading apostrophe keeps it as plain text.
+  if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 // Leading BOM so Excel opens accents (é, ç…) correctly.

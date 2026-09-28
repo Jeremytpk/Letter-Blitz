@@ -63,7 +63,11 @@ function parseCsv(text) {
   if (cell || row.length) row.push(cell), rows.push(row);
   return rows.filter((r) => r.length > 1 || r[0]);
 }
-const cellOut = (s) => (/[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+const cellOut = (value) => {
+  // Keep text starting with = + - @ from running as a spreadsheet formula.
+  const s = /^[=+\-@\t\r]/.test(value) && !/^-?\d/.test(value) ? `'${value}` : value;
+  return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
 const writeCsv = (file, rows) => writeFileSync(file, '﻿' + rows.map((r) => r.map(cellOut).join(',')).join('\r\n') + '\r\n');
 
 // Merge a fresh export into a running file; newer rows replace older ones

@@ -23,6 +23,9 @@ export function adminConfig(env) {
     avatar: (env.ADMIN_AVATAR || '').trim(),
     password: env.ADMIN_PASSWORD || '',
     passcode: env.ADMIN_PASSCODE || '',
+    // Random signing key for sign-in tokens (optional but recommended), so
+    // tokens can't be forged by someone who guesses the password.
+    secret: env.ADMIN_SECRET || '',
   };
   return cfg.name && cfg.avatar && cfg.password && cfg.passcode ? cfg : null;
 }
@@ -31,7 +34,7 @@ const digest = (s) => createHash('sha256').update(String(s)).digest();
 const sameSecret = (a, b) => timingSafeEqual(digest(a), digest(b));
 
 // Signing key derived from the secrets, so changing them signs everyone out.
-const signingKey = (cfg) => digest(`letter-blitz-admin:${cfg.password}:${cfg.passcode}`);
+const signingKey = (cfg) => digest(`letter-blitz-admin:${cfg.secret}:${cfg.password}:${cfg.passcode}`);
 const sign = (cfg, payload) => createHmac('sha256', signingKey(cfg)).update(payload).digest('base64url');
 
 export function isAdminEntry(cfg, name, avatar) {

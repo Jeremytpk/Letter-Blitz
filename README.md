@@ -106,3 +106,11 @@ Open the URL it prints (usually `http://localhost:8888`).
   write in from `public/contact.html`. Both show on the admin dashboard and
   are saved by `npm run export-data` into their own files,
   `admin-data/all-feedback.csv` and `admin-data/all-messages.csv`.
+- **Security:** strict security headers (Content-Security-Policy, HSTS,
+  no framing, no MIME sniffing) in `netlify.toml`; the API
+  (`netlify/lib/security.mjs`) refuses requests from other websites,
+  oversized bodies and floods, validates room codes, player ids and text,
+  and rate-limits rooms, joins, look-ups, visits, feedback and messages per
+  network address. Admin tokens are signed with `ADMIN_SECRET` (a random
+  Netlify environment variable); CSV exports neutralise spreadsheet
+  formulas. Report problems via `/.well-known/security.txt`.

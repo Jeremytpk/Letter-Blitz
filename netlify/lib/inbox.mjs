@@ -6,7 +6,8 @@
 // Nothing here is deleted automatically — only the admin can.
 // ---------------------------------------------------------------------------
 
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
+import { cleanText, ipTag } from './security.mjs';
 
 export const FEEDBACK_PREFIX = 'feedback-';
 export const MESSAGE_PREFIX = 'message-';
@@ -14,10 +15,9 @@ export const MESSAGE_PREFIX = 'message-';
 // Per network address and hour, to stop floods.
 const LIMITS = { feedback: 10, message: 5 };
 
-const clip = (v, max) => String(v === undefined || v === null ? '' : v).replace(/\s+$/g, '').slice(0, max);
-const oneLine = (v, max) => clip(v, max).replace(/\s+/g, ' ').trim();
+const clip = (v, max) => cleanText(v, { max, singleLine: false });
+const oneLine = (v, max) => cleanText(v, { max });
 const newKey = (prefix, t) => `${prefix}${new Date(t).toISOString().slice(0, 10)}-${t}-${randomBytes(3).toString('hex')}`;
-const ipTag = (ip) => createHash('sha256').update(String(ip || 'unknown')).digest('hex').slice(0, 16);
 
 export class InboxError extends Error {
   constructor(code, message) {
