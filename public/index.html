@@ -92,7 +92,8 @@
     <nav class="site-links" aria-label="Site">
       <a href="/about.html" data-i18n="about">About</a><span aria-hidden="true">·</span>
       <a href="/privacy.html" data-i18n="privacy">Privacy</a><span aria-hidden="true">·</span>
-      <a href="/terms.html" data-i18n="terms">Terms</a>
+      <a href="/terms.html" data-i18n="terms">Terms</a><span aria-hidden="true">·</span>
+      <a href="/contact.html" data-i18n="contact">Contact</a>
     </nav>
     <footer class="credit"><span data-i18n="poweredBy">Powered by</span> <strong>Jerttech</strong></footer>
   </section>
@@ -116,6 +117,17 @@
       <div class="admin-rooms" id="admin-rooms"></div>
     </section>
 
+    <section class="admin-section">
+      <h2 class="admin-h2"><span data-icon="star"></span><span data-i18n="feedbackH">Feedback</span> <span class="admin-count" id="admin-feedback-count">0</span></h2>
+      <p class="admin-note" id="admin-feedback-summary"></p>
+      <div class="admin-feed" id="admin-feedback"></div>
+    </section>
+
+    <section class="admin-section">
+      <h2 class="admin-h2"><span data-icon="mail"></span><span data-i18n="messagesH">Messages</span> <span class="admin-count" id="admin-messages-count">0</span></h2>
+      <div class="admin-feed" id="admin-messages"></div>
+    </section>
+
     <section class="admin-section admin-data">
       <h2 class="admin-h2" data-i18n="dataExports">Data &amp; exports</h2>
       <p class="admin-note" id="admin-storage"></p>
@@ -126,6 +138,8 @@
           <button class="btn btn-secondary btn-sm" data-csv="daily" data-i18n="csvDaily">Daily stats</button>
           <button class="btn btn-secondary btn-sm" data-csv="rooms" data-i18n="csvRooms">Rooms</button>
           <button class="btn btn-secondary btn-sm" data-csv="players" data-i18n="csvPlayers">Players</button>
+          <button class="btn btn-secondary btn-sm" data-csv="feedback" data-i18n="csvFeedback">Feedback</button>
+          <button class="btn btn-secondary btn-sm" data-csv="messages" data-i18n="csvMessages">Messages</button>
         </div>
         <p class="admin-note" data-i18n="csvHint">Rooms and Players include live rooms and the archive.</p>
       </div>
@@ -138,6 +152,8 @@
             <select id="admin-delete-what">
               <option value="archive" data-i18n="deleteArchive">Archived rooms</option>
               <option value="days" data-i18n="deleteDays">Daily history</option>
+              <option value="feedback" data-i18n="deleteFeedback">Feedback</option>
+              <option value="messages" data-i18n="deleteMessages">Messages</option>
             </select>
           </label>
           <label class="field">
@@ -290,6 +306,31 @@
 </div>
 
 <div class="toast" id="toast" hidden></div>
+
+<div class="modal-backdrop" id="feedback-modal" hidden>
+  <form class="modal feedback-modal" id="feedback-form" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+    <div class="feedback-art" id="feedback-art"></div>
+    <h2 class="modal-title" id="feedback-title" data-i18n="feedbackTitle">How was your game?</h2>
+    <p class="modal-text" data-i18n="feedbackText">Your rating helps Jerttech make Letter Blitz better.</p>
+    <div class="rating" id="rating" role="radiogroup" aria-labelledby="feedback-title">
+      <button type="button" class="rating-star" role="radio" data-rating="1"><span data-icon="star"></span></button>
+      <button type="button" class="rating-star" role="radio" data-rating="2"><span data-icon="star"></span></button>
+      <button type="button" class="rating-star" role="radio" data-rating="3"><span data-icon="star"></span></button>
+      <button type="button" class="rating-star" role="radio" data-rating="4"><span data-icon="star"></span></button>
+      <button type="button" class="rating-star" role="radio" data-rating="5"><span data-icon="star"></span></button>
+    </div>
+    <p class="rating-label" id="rating-label">&nbsp;</p>
+    <label class="field">
+      <span class="field-label" data-i18n="feedbackComment">Tell us more (optional)</span>
+      <textarea id="feedback-comment" maxlength="1000" rows="3" data-i18n-placeholder="feedbackPlaceholder"></textarea>
+    </label>
+    <p class="error" id="feedback-error" hidden></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="btn-feedback-skip" data-i18n="skip">Skip</button>
+      <button type="submit" class="btn btn-primary" id="btn-feedback-send" disabled data-i18n="send">Send</button>
+    </div>
+  </form>
+</div>
 
 <div class="modal-backdrop" id="admin-modal" hidden>
   <form class="modal" id="admin-form" role="dialog" aria-modal="true" aria-labelledby="admin-login-title" autocomplete="off">

@@ -2,13 +2,15 @@
 //
 //   npm run export-data                    save everything
 //   npm run export-data -- --delete-after  save, then free up space online by
-//                                          deleting archived rooms and daily
-//                                          history older than today
+//                                          deleting archived rooms, daily
+//                                          history, feedback and messages
+//                                          older than today
 //
 // Signs in with ADMIN_PASSWORD / ADMIN_PASSCODE from the local .env file.
-// Each run writes a dated snapshot folder, and merges rooms, players and daily
-// stats into running files (admin-data/all-*.csv), so nothing is lost after
-// the online copy is deleted. admin-data/ is ignored by git (it holds player
+// Each run writes a dated snapshot folder, and merges rooms, players, daily
+// stats, feedback and messages into running files (admin-data/all-*.csv —
+// feedback and messages each have their own), so nothing is lost after the
+// online copy is deleted. admin-data/ is ignored by git (it holds player
 // names), so it stays on this computer.
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -96,26 +98,36 @@ async function main() {
   writeFileSync(new URL('dashboard.json', dir), JSON.stringify(dashboard, null, 2));
 
   const files = {};
-  for (const dataset of ['totals', 'daily', 'rooms', 'players']) {
+  for (const dataset of ['totals', 'daily', 'rooms', 'players', 'feedback', 'messages']) {
     const { csv } = await call('adminCsv', { token, dataset });
     writeFileSync(new URL(`${dataset}.csv`, dir), csv);
     files[dataset] = csv;
   }
-  console.log(`Saved snapshot: admin-data/${stamp}/ (dashboard.json, totals, daily, rooms, players)`);
+  console.log(`Saved snapshot: admin-data/${stamp}/ (dashboard.json, totals, daily, rooms, players, feedback, messages)`);
 
   const counts = {
     daily: mergeInto(new URL('all-daily-stats.csv', OUT), files.daily, ['date']),
     rooms: mergeInto(new URL('all-rooms.csv', OUT), files.rooms, ['room_code', 'created_at']),
     players: mergeInto(new URL('all-players.csv', OUT), files.players, ['room_code', 'room_created_at', 'player_name', 'joined_at']),
+    feedback: mergeInto(new URL('all-feedback.csv', OUT), files.feedback, ['id']),
+    messages: mergeInto(new URL('all-messages.csv', OUT), files.messages, ['id']),
   };
   writeFileSync(new URL('latest-totals.csv', OUT), files.totals);
-  console.log(`Running files: all-daily-stats.csv (${counts.daily} days), all-rooms.csv (${counts.rooms} rooms), all-players.csv (${counts.players} rows)`);
+  console.log(
+    `Running files: all-daily-stats.csv (${counts.daily} days), all-rooms.csv (${counts.rooms} rooms), all-players.csv (${counts.players} rows), ` +
+      `all-feedback.csv (${counts.feedback}), all-messages.csv (${counts.messages})`
+  );
 
   if (deleteAfter) {
     const today = new Date().toISOString().slice(0, 10);
     const a = await call('adminDelete', { token, dataset: 'archive', before: today });
     const d = await call('adminDelete', { token, dataset: 'days', before: today });
-    console.log(`Freed space online: deleted ${a.deleted} archived room(s) and ${d.deleted} day(s) of history from before ${today}. Totals kept.`);
+    const f = await call('adminDelete', { token, dataset: 'feedback', before: today });
+    const m = await call('adminDelete', { token, dataset: 'messages', before: today });
+    console.log(
+      `Freed space online (from before ${today}): ${a.deleted} archived room(s), ${d.deleted} day(s) of history, ` +
+        `${f.deleted} feedback, ${m.deleted} message(s). Totals kept.`
+    );
   }
 }
 

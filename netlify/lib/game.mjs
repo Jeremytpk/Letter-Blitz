@@ -11,7 +11,8 @@
 import { checkCategories } from './category.mjs';
 import { createStats } from './stats.mjs';
 import { createAdmin, isAdminEntry } from './admin.mjs';
-import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv } from './archive.mjs';
+import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv } from './archive.mjs';
+import { createInbox, InboxError } from './inbox.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -261,6 +262,17 @@ function publicState(room, playerId, now) {
 export function createGame(store, { now = () => Date.now(), verify = checkCategories, adminCfg = null } = {}) {
   const stats = createStats(store, now);
   const admin = createAdmin(store, adminCfg, now);
+  const inbox = createInbox(store, now);
+
+  // Turn inbox problems into errors the page can translate.
+  async function inboxCall(fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof InboxError) throw new GameError(err.code, err.message);
+      throw err;
+    }
+  }
 
   // The owner's secret name + avatar opens the admin sign-in instead of a room.
   function checkAdminEntry(name, avatar) {
@@ -490,7 +502,25 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { dashboard: await dashboard() } };
     },
 
-    // CSV exports: 'daily' | 'rooms' | 'players' | 'totals'.
+    // Rating after the last round or on leaving a room.
+    async feedback(body, meta) {
+      await inboxCall(() => inbox.addFeedback({ ...body, roomCode: body.code }, meta.ip));
+      return { room: null, playerId: null, extra: { ok: true } };
+    },
+
+    // "Contact us" form.
+    async contact(body, meta) {
+      await inboxCall(() => inbox.addMessage(body, meta.ip));
+      return { room: null, playerId: null, extra: { ok: true } };
+    },
+
+    async adminDeleteItem({ token, id }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      await inbox.deleteItem(id);
+      return { room: null, playerId: null, extra: { dashboard: await dashboard() } };
+    },
+
+    // CSV exports: 'daily' | 'rooms' | 'players' | 'totals' | 'feedback' | 'messages'.
     async adminCsv({ token, dataset }) {
       if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
       const t = now();
@@ -501,7 +531,9 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       else if (dataset === 'rooms' || dataset === 'players') {
         const rooms = [...(await currentRoomSummaries(t)), ...(await listArchive(store))];
         csv = dataset === 'rooms' ? roomsCsv(rooms) : playersCsv(rooms);
-      } else throw new GameError('bad_dataset', 'Unknown export.');
+      } else if (dataset === 'feedback') csv = feedbackCsv(await inbox.listFeedback());
+      else if (dataset === 'messages') csv = messagesCsv(await inbox.listMessages());
+      else throw new GameError('bad_dataset', 'Unknown export.');
       return { room: null, playerId: null, extra: { csv, filename: `letter-blitz-${dataset}-${stamp}.csv` } };
     },
 
@@ -513,6 +545,8 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       let deleted;
       if (dataset === 'archive') deleted = await deleteArchive(store, cutoff);
       else if (dataset === 'days') deleted = await stats.deleteDays(cutoff);
+      else if (dataset === 'feedback') deleted = await inbox.deleteFeedbackBefore(cutoff);
+      else if (dataset === 'messages') deleted = await inbox.deleteMessagesBefore(cutoff);
       else throw new GameError('bad_dataset', 'Unknown data.');
       return { room: null, playerId: null, extra: { deleted, dashboard: await dashboard() } };
     },
@@ -629,7 +663,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     }
     rooms.sort((a, b) => b.createdAt - a.createdAt);
     const archived = await store.list({ prefix: 'archive-room-' });
+    const [feedback, messages] = await Promise.all([inbox.listFeedback(), inbox.listMessages()]);
     return {
+      feedback,
+      messages,
       generatedAt: t,
       stats: await stats.get(),
       roomsOnline: rooms.length,

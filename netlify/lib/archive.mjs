@@ -113,3 +113,17 @@ export function totalsCsv(stats, snapshot) {
     ]
   );
 }
+
+export function feedbackCsv(items) {
+  return toCsv(
+    ['id', 'created_at', 'rating', 'comment', 'when', 'player_name', 'avatar', 'room_code', 'language'],
+    items.map((f) => [f.id, iso(f.createdAt), f.rating, f.comment, f.context, f.name, f.avatar, f.roomCode, f.lang])
+  );
+}
+
+export function messagesCsv(items) {
+  return toCsv(
+    ['id', 'created_at', 'name', 'email', 'message', 'language'],
+    items.map((m) => [m.id, iso(m.createdAt), m.name, m.email, m.message, m.lang])
+  );
+}

@@ -80,6 +80,20 @@
     adminRoomsCount: document.getElementById('admin-rooms-count'),
     adminDays: document.getElementById('admin-days'),
     adminStorage: document.getElementById('admin-storage'),
+    adminFeedback: document.getElementById('admin-feedback'),
+    adminFeedbackCount: document.getElementById('admin-feedback-count'),
+    adminFeedbackSummary: document.getElementById('admin-feedback-summary'),
+    adminMessages: document.getElementById('admin-messages'),
+    adminMessagesCount: document.getElementById('admin-messages-count'),
+
+    feedbackModal: document.getElementById('feedback-modal'),
+    feedbackForm: document.getElementById('feedback-form'),
+    feedbackArt: document.getElementById('feedback-art'),
+    ratingLabel: document.getElementById('rating-label'),
+    feedbackComment: document.getElementById('feedback-comment'),
+    feedbackError: document.getElementById('feedback-error'),
+    btnFeedbackSkip: document.getElementById('btn-feedback-skip'),
+    btnFeedbackSend: document.getElementById('btn-feedback-send'),
     adminDeleteForm: document.getElementById('admin-delete-form'),
     adminDeleteWhat: document.getElementById('admin-delete-what'),
     adminDeleteBefore: document.getElementById('admin-delete-before'),
@@ -369,6 +383,85 @@
     }
   }
 
+  // ---------------- feedback ----------------
+
+  // Asked once per room: after the last round, or when leaving.
+  const FEEDBACK_KEY = 'lb_feedback_rooms';
+  function feedbackGiven(code) {
+    try {
+      return !!code && JSON.parse(sessionStorage.getItem(FEEDBACK_KEY) || '[]').includes(code);
+    } catch {
+      return false;
+    }
+  }
+  function markFeedback(code) {
+    if (!code) return;
+    try {
+      const list = JSON.parse(sessionStorage.getItem(FEEDBACK_KEY) || '[]');
+      sessionStorage.setItem(FEEDBACK_KEY, JSON.stringify([...list, code].slice(-50)));
+    } catch {}
+  }
+
+  let feedbackCtx = null; // { context, name, avatar, code }
+  let feedbackRating = 0;
+
+  function setRating(n) {
+    feedbackRating = n;
+    for (const btn of els.feedbackForm.querySelectorAll('.rating-star')) {
+      const v = Number(btn.dataset.rating);
+      btn.classList.toggle('is-on', v <= n);
+      btn.setAttribute('aria-checked', String(v === n));
+      btn.setAttribute('aria-label', `${v} / 5 — ${t(`rating${v}`)}`);
+    }
+    els.ratingLabel.textContent = n ? t(`rating${n}`) : '\u00a0';
+    els.btnFeedbackSend.disabled = !n;
+  }
+  for (const btn of els.feedbackForm.querySelectorAll('.rating-star')) {
+    btn.addEventListener('click', () => setRating(Number(btn.dataset.rating)));
+  }
+
+  function openFeedback(context, who) {
+    if (!els.feedbackModal.hidden || !els.leaveModal.hidden) return;
+    feedbackCtx = { context, ...who };
+    markFeedback(who.code); // never ask twice for the same game, even if skipped
+    setRating(0);
+    els.feedbackComment.value = '';
+    els.feedbackError.hidden = true;
+    els.feedbackArt.innerHTML = who.avatar ? avatarHTML(who.avatar, who.name) : icon('star');
+    els.feedbackModal.hidden = false;
+  }
+  function closeFeedback() {
+    els.feedbackModal.hidden = true;
+    feedbackCtx = null;
+  }
+  els.btnFeedbackSkip.addEventListener('click', closeFeedback);
+  els.feedbackForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!feedbackRating || !feedbackCtx) return;
+    els.btnFeedbackSend.disabled = true;
+    try {
+      await api('feedback', {
+        rating: feedbackRating,
+        comment: els.feedbackComment.value,
+        context: feedbackCtx.context,
+        name: feedbackCtx.name,
+        avatar: feedbackCtx.avatar,
+        code: feedbackCtx.code,
+        lang: window.i18n.lang,
+      });
+      const avatar = feedbackCtx.avatar;
+      closeFeedback();
+      showToast(t('feedbackThanks'), avatar);
+    } catch (err) {
+      els.feedbackError.textContent = err.message;
+      els.feedbackError.hidden = false;
+      els.btnFeedbackSend.disabled = false;
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.feedbackModal.hidden) closeFeedback();
+  });
+
   // ---------------- admin ----------------
 
   const SS_ADMIN = 'lb_admin_token';
@@ -490,6 +583,80 @@
     return h ? `${fmt(h)} h ${totalMin % 60} min` : `${totalMin} min`;
   };
 
+  const when = (ts) =>
+    new Date(ts).toLocaleString(window.i18n.lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+  function deleteButton(id) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn feed-delete';
+    btn.textContent = t('deleteItem');
+    btn.addEventListener('click', async () => {
+      if (!window.confirm(t('confirmDeleteItem'))) return;
+      try {
+        const data = await api('adminDeleteItem', { token: ssGet(SS_ADMIN), id });
+        lastDashboard = data.dashboard;
+        renderDashboard();
+      } catch (err) {
+        if (err.code === 'admin_expired') adminSignOut(err.message);
+        else showToast(err.message);
+      }
+    });
+    return btn;
+  }
+
+  function renderInbox(d) {
+    const feedback = d.feedback || [];
+    const messages = d.messages || [];
+
+    els.adminFeedbackCount.textContent = fmt(feedback.length);
+    const by = [0, 0, 0, 0, 0, 0];
+    for (const f of feedback) by[f.rating] += 1;
+    const avg = feedback.length ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0;
+    els.adminFeedbackSummary.textContent = feedback.length
+      ? t('avgRating', { avg: avg.toFixed(1), n: fmt(feedback.length), s5: by[5], s4: by[4], s3: by[3], s2: by[2], s1: by[1] })
+      : t('noFeedback');
+    els.adminFeedback.innerHTML = '';
+    for (const f of feedback) {
+      const card = document.createElement('div');
+      card.className = 'feed-item';
+      card.innerHTML = `<div class="feed-head">${avatarHTML(f.avatar, f.name || '?')}<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div><div class="feed-stars">${[1, 2, 3, 4, 5]
+        .map((v) => `<span class="${v <= f.rating ? '' : 'off'}">${icon('star')}</span>`)
+        .join('')}</div></div><p class="feed-text"></p>`;
+      card.querySelector('.feed-name').textContent = f.name || t('anonymous');
+      card.querySelector('.feed-meta').textContent = [when(f.createdAt), t(`ctx_${f.context}`), f.roomCode, f.lang.toUpperCase()].filter(Boolean).join(' · ');
+      const text = card.querySelector('.feed-text');
+      text.textContent = f.comment || t('noComment');
+      text.classList.toggle('is-empty', !f.comment);
+      card.appendChild(deleteButton(f.id));
+      els.adminFeedback.appendChild(card);
+    }
+
+    els.adminMessagesCount.textContent = fmt(messages.length);
+    els.adminMessages.innerHTML = '';
+    if (!messages.length) {
+      els.adminMessages.innerHTML = '<p class="admin-empty"></p>';
+      els.adminMessages.firstChild.textContent = t('noMessages');
+    }
+    for (const m of messages) {
+      const card = document.createElement('div');
+      card.className = 'feed-item';
+      card.innerHTML = `<div class="feed-head">${icon('mail')}<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div></div><p class="feed-text"></p>`;
+      card.querySelector('.feed-name').textContent = m.name || t('anonymous');
+      card.querySelector('.feed-meta').textContent = `${when(m.createdAt)} · ${m.lang.toUpperCase()}`;
+      card.querySelector('.feed-text').textContent = m.message;
+      if (m.email) {
+        const a = document.createElement('a');
+        a.className = 'feed-email';
+        a.href = `mailto:${m.email}`;
+        a.textContent = m.email;
+        card.querySelector('.feed-who').appendChild(a);
+      }
+      card.appendChild(deleteButton(m.id));
+      els.adminMessages.appendChild(card);
+    }
+  }
+
   function renderDashboard() {
     const d = lastDashboard;
     if (!d) return;
@@ -526,6 +693,8 @@
       rooms: fmt(d.archivedRooms),
       days: fmt(Object.keys(st.days).length),
     });
+
+    renderInbox(d);
 
     els.adminRoomsCount.textContent = fmt(d.rooms.length);
     els.adminRooms.innerHTML = '';
@@ -706,6 +875,9 @@
   // { newHostId } or { closeRoom: true }.
   function leaveRoom(options = {}) {
     closeLeaveModal();
+    // Remember who was playing before their data is erased, for the feedback form.
+    const me = currentState && currentState.players.find((p) => p.id === myPlayerId);
+    const who = { name: me ? me.name : '', avatar: myAvatar, code: myRoomCode };
     api('leave', options).catch(() => {});
     for (const key of [LS_NAME, LS_CODE, LS_PLAYER_ID, LS_AVATAR]) localStorage.removeItem(key);
     myPlayerId = null;
@@ -715,6 +887,7 @@
     els.codeInput.value = '';
     resetToLanding();
     showToast(options.closeRoom ? t('closedToast') : t('leftToast'));
+    if (!feedbackGiven(who.code)) setTimeout(() => openFeedback('leave', who), 700);
   }
 
   els.btnLeaveCancel.addEventListener('click', closeLeaveModal);
@@ -746,6 +919,16 @@
     revealScreen = 'scores';
     if (currentState) render(currentState);
     window.scrollTo(0, 0);
+    // After the last round, ask how the game was (once per game).
+    const st = currentState;
+    if (st && st.reveal && st.reveal.final && !feedbackGiven(st.code)) {
+      const me = st.players.find((p) => p.id === myPlayerId);
+      setTimeout(() => {
+        if (currentState && currentState.phase === 'reveal' && !els.views.scores.hidden) {
+          openFeedback('game_over', { name: me ? me.name : '', avatar: myAvatar, code: st.code });
+        }
+      }, 1500);
+    }
   });
   els.btnPlayAgain.addEventListener('click', () => {
     els.btnPlayAgain.disabled = true;
@@ -1266,6 +1449,7 @@
     if (!els.inviteBanner.hidden) renderInviteBanner();
     renderRoomClosed();
     renderDashboard();
+    if (!els.feedbackModal.hidden) setRating(feedbackRating);
   });
   window.i18n.applyStatic();
 

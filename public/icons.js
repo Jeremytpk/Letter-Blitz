@@ -66,6 +66,15 @@
       <path d="M13.2 24.6 Q16 22.4 18.8 24.6" stroke="${DARK}" stroke-width="1.4" fill="none" stroke-linecap="round"/>
       <circle cx="10" cy="22.4" r="1.5" fill="#ff6b81" opacity=".45"/><circle cx="22" cy="22.4" r="1.5" fill="#ff6b81" opacity=".45"/>
       ${shine(9.2, 16.3, 1.2)}`,
+    star: `
+      <path d="M16 3.2 L19.6 10.6 L27.7 11.7 L21.8 17.4 L23.3 25.5 L16 21.6 L8.7 25.5 L10.2 17.4 L4.3 11.7 L12.4 10.6 Z" fill="#ffd166" stroke="#ffd166" stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M16 21.6 L8.7 25.5 L10.2 17.4 L4.3 11.7 L12.4 10.6 L16 3.2 Z" fill="#ffe08a"/>
+      ${shine(12.8, 12.4, 1.2)}`,
+    mail: `
+      <rect x="3" y="7" width="26" height="19" rx="4" fill="#3a86ff"/>
+      <path d="M4.5 9.5 L16 18 L27.5 9.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="25" cy="8" r="4.2" fill="#ff5d8f"/>
+      ${shine(7.5, 12, 1.2)}`,
     'arrow-right': `<path d="M6 16 H25 M18 9 L25 16 L18 23" stroke="currentColor" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
     'arrow-left': `<path d="M26 16 H7 M14 9 L7 16 L14 23" stroke="currentColor" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
   };

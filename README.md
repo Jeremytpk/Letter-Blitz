@@ -100,3 +100,8 @@ Open the URL it prints (usually `http://localhost:8888`).
   older than today; totals are kept). The dashboard also has CSV downloads.
 - About, Privacy and Terms pages: `public/about.html`, `privacy.html`,
   `terms.html` (English and French).
+- **Feedback & messages:** players are asked for a 1–5 star rating (with an
+  optional comment) after the last round or when they leave a room, and can
+  write in from `public/contact.html`. Both show on the admin dashboard and
+  are saved by `npm run export-data` into their own files,
+  `admin-data/all-feedback.csv` and `admin-data/all-messages.csv`.

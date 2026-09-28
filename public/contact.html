@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Contact · Letter Blitz</title>
+<meta name="description" content="Send a message to the Letter Blitz team at Jerttech." />
+<meta name="theme-color" content="#0e0f1a" />
+<link rel="icon" type="image/png" href="/favicon.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div class="app page">
+  <header class="page-top">
+    <a class="page-back" href="/"><span data-icon="arrow-left"></span><span data-lang-block="en">Back to the game</span><span data-lang-block="fr" hidden>Retour au jeu</span></a>
+    <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+  </header>
+  <a class="page-logo" href="/"><img src="/logo.jpg" alt="Letter Blitz" width="1200" height="655" /></a>
+
+  <article class="page-body contact-page">
+    <div data-lang-block="en">
+      <h1>Contact us</h1>
+      <p class="lead">Questions, ideas, a bug to report, or just want to say hi? Send us a message — the Jerttech team reads every one.</p>
+    </div>
+    <div data-lang-block="fr" hidden>
+      <h1>Nous contacter</h1>
+      <p class="lead">Une question, une idée, un bug à signaler, ou simplement envie de dire bonjour ? Envoyez-nous un message — l’équipe Jerttech les lit tous.</p>
+    </div>
+
+    <form class="contact-form" id="contact-form" novalidate>
+      <label class="field">
+        <span class="field-label"><span data-lang-block="en">Your name (optional)</span><span data-lang-block="fr" hidden>Votre nom (facultatif)</span></span>
+        <input id="contact-name" type="text" maxlength="60" autocomplete="name" />
+      </label>
+      <label class="field">
+        <span class="field-label"><span data-lang-block="en">Email (optional — if you’d like a reply)</span><span data-lang-block="fr" hidden>E-mail (facultatif — si vous souhaitez une réponse)</span></span>
+        <input id="contact-email" type="email" maxlength="200" autocomplete="email" inputmode="email" />
+      </label>
+      <label class="field">
+        <span class="field-label"><span data-lang-block="en">Message</span><span data-lang-block="fr" hidden>Message</span></span>
+        <textarea id="contact-message" maxlength="3000" rows="6" required></textarea>
+      </label>
+      <!-- Left empty by people; bots tend to fill it in. -->
+      <label class="hp" aria-hidden="true">Website <input id="contact-website" type="text" tabindex="-1" autocomplete="off" /></label>
+      <p class="error" id="contact-error" hidden></p>
+      <button type="submit" class="btn btn-primary" id="contact-send"><span data-icon="mail"></span><span data-lang-block="en">Send message</span><span data-lang-block="fr" hidden>Envoyer le message</span></button>
+      <p class="page-updated"><span data-lang-block="en">What happens to your message is explained in the <a href="/privacy.html">Privacy Policy</a>.</span><span data-lang-block="fr" hidden>Le traitement de votre message est expliqué dans la <a href="/privacy.html">Politique de confidentialité</a>.</span></p>
+    </form>
+
+    <div class="contact-done" id="contact-done" hidden>
+      <span data-icon="mail"></span>
+      <h2><span data-lang-block="en">Message sent — thank you!</span><span data-lang-block="fr" hidden>Message envoyé — merci !</span></h2>
+      <p><span data-lang-block="en">We’ll read it soon. If you left your email, we’ll reply there.</span><span data-lang-block="fr" hidden>Nous le lirons bientôt. Si vous avez laissé votre e-mail, nous vous répondrons.</span></p>
+      <a class="btn btn-secondary" href="/"><span data-icon="arrow-left"></span><span data-lang-block="en">Back to the game</span><span data-lang-block="fr" hidden>Retour au jeu</span></a>
+    </div>
+  </article>
+
+  <nav class="site-links" aria-label="Site">
+    <a href="/about.html"><span data-lang-block="en">About</span><span data-lang-block="fr" hidden>À propos</span></a><span aria-hidden="true">·</span>
+    <a href="/privacy.html"><span data-lang-block="en">Privacy</span><span data-lang-block="fr" hidden>Confidentialité</span></a><span aria-hidden="true">·</span>
+    <a href="/terms.html"><span data-lang-block="en">Terms</span><span data-lang-block="fr" hidden>Conditions</span></a><span aria-hidden="true">·</span>
+    <a href="/contact.html">Contact</a>
+  </nav>
+  <footer class="credit"><span data-lang-block="en">Powered by</span><span data-lang-block="fr" hidden>Propulsé par</span> <strong>Jerttech</strong></footer>
+</div>
+<script src="/icons.js"></script>
+<script src="/pages.js"></script>
+<script src="/contact.js"></script>
+</body>
+</html>

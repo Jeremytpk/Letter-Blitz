@@ -877,8 +877,29 @@ input[type="range"] {
 .page-body ul, .page-body ol { padding-left: 22px; }
 .page-body li { margin-bottom: 6px; }
 .page-body a { color: var(--accent); font-weight: 700; }
+.page-body a.btn { color: var(--text); text-decoration: none; }
 .page-body .lead { font-size: 16px; color: var(--text); }
 .page-updated { font-size: 13px; color: var(--text-dim); }
+
+.contact-form { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
+.contact-form input[type='text'], .contact-form input[type='email'] {
+  font: inherit;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  width: 100%;
+}
+.contact-form input:focus { outline: none; border-color: var(--accent); }
+.contact-form textarea { font-size: 16px; }
+.contact-form .btn .icon { width: 22px; height: 22px; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.contact-done { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 12px 0 4px; }
+.contact-done > [data-icon] .icon { width: 72px; height: 72px; }
+.contact-done h2 { margin: 4px 0 0; }
+.contact-done .btn { margin-top: 8px; }
 
 /* ---------- site links ---------- */
 
@@ -986,6 +1007,50 @@ input[type="range"] {
 .checking-note { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .checking-note .icon { width: 24px; height: 24px; }
 .invite-btn .icon { width: 22px; height: 22px; }
+
+/* ---------- feedback ---------- */
+
+.feedback-modal { text-align: center; align-items: stretch; }
+.feedback-modal .field { text-align: left; }
+.feedback-art { display: flex; justify-content: center; }
+.feedback-art .avatar { width: 64px; height: 64px; }
+.rating { display: flex; justify-content: center; gap: 4px; }
+.rating-star { background: none; border: none; padding: 4px; cursor: pointer; border-radius: 12px; transition: transform 0.12s; }
+.rating-star .icon { width: 40px; height: 40px; display: block; }
+.rating-star:not(.is-on) .icon { filter: grayscale(1); opacity: 0.35; }
+.rating-star:hover { transform: scale(1.12); }
+.rating-star:focus-visible { outline: 2px solid var(--accent); }
+.rating-label { margin: 0; min-height: 1.3em; font-weight: 800; font-size: 14px; color: var(--accent); }
+textarea {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
+}
+textarea:focus { outline: none; border-color: var(--accent); }
+
+/* ---------- admin feedback & messages ---------- */
+
+.admin-h2 .icon { width: 22px; height: 22px; }
+.admin-feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.feed-item { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.feed-head { display: flex; align-items: center; gap: 8px; }
+.feed-head > .icon { width: 36px; height: 36px; flex-shrink: 0; }
+.feed-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.feed-name { font-weight: 800; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-meta { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+.feed-stars { display: flex; }
+.feed-stars .icon { width: 16px; height: 16px; }
+.feed-stars .off { filter: grayscale(1); opacity: 0.3; }
+.feed-text { margin: 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feed-text.is-empty { color: var(--text-dim); font-style: italic; }
+.feed-email { font-size: 13px; font-weight: 700; color: var(--accent); overflow-wrap: anywhere; }
+.feed-delete { padding: 6px 10px; font-size: 12px; }
 
 /* ---------- modal ---------- */
 
