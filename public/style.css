@@ -1354,3 +1354,4 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .challenge-modal { text-align: center; }
 .challenge-modal .challenge-text { margin: 4px 0 10px; }
 .challenge-modal-rules a { color: var(--accent); font-weight: 700; }
+.play-leave { display: block; margin: 18px auto 8px; font-size: 14px; color: var(--text-dim); }

@@ -69,8 +69,14 @@ Open the URL it prints (usually `http://localhost:8888`).
   EN / FR switch (saved on their device; first visit follows the phone's
   language). All text is in `public/i18n.js`; the server sends error codes
   that each page translates.
-- When the room head (👑) leaves, they choose to give the crown to another
-  player or close the room for everyone.
+- Only the room head (👑) can pass the crown or close the room. When they
+  leave, they must either give the crown to another player or close the room
+  for everyone (the server refuses anything else) — only that makes someone
+  else the owner. If the owner is inactive for 60 seconds, the
+  longest-standing player still online holds the crown meanwhile (they can
+  run the game but not close the room or give the crown away), and it goes
+  back to the owner as soon as they return. Everyone else can leave at any
+  time, including mid-round, after a confirmation.
 - Everyone gets a notification (with avatar) when a player joins the room.
 - In the timer bar the room head always has a 👥 button with the player
   count and a scrolling player list (with each player's progress); a switch
@@ -83,7 +89,9 @@ Open the URL it prints (usually `http://localhost:8888`).
 - Rounds start with a 3-2-1 countdown so every phone starts at the same moment.
 - The category list lives in `netlify/lib/game.mjs` (`CATEGORY_BANK`). The nine core
   ones are used first; extras are mixed in when a room asks for more than nine.
-- Rooms expire after 12 hours.
+- Rooms expire after 12 hours. A room where nobody has been active for
+  3 minutes closes automatically; members who come back see a page saying
+  it was closed for inactivity.
 - **Admin dashboard** (visits, players, rooms, live rooms and players, time
   played) is switched on by four environment variables set in Netlify —
   `ADMIN_NAME`, `ADMIN_AVATAR`, `ADMIN_PASSWORD`, `ADMIN_PASSCODE`. Their

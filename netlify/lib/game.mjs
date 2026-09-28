@@ -47,9 +47,11 @@ const MIN_PLAYERS_TO_START = 2;
 const COUNTDOWN_MS = 3500; // "3, 2, 1" before a round so every phone starts together
 const ANSWER_GRACE_MS = 2500; // late answers accepted after the clock hits zero
 const ONLINE_MS = 15000; // no poll for this long = shown as disconnected
+const HOST_INACTIVE_MS = 60000; // room head silent this long = someone else holds the crown meanwhile
 const LAST_SEEN_WRITE_MS = 8000;
 const CHECK_TAKEOVER_MS = 20000; // if a checker dies, another poll takes over
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
+const ROOM_INACTIVE_MS = 3 * 60 * 1000; // every player silent this long = the room closes
 const CHECK_TIME_LIMIT_MS = 7000; // Netlify stops a function after 10s
 
 // `code` lets each player's page show the message in their own language.
@@ -165,18 +167,30 @@ function touch(room, playerId, now) {
   if (room.players[playerId]) room.players[playerId].lastSeen = now;
 }
 
+// Nobody in the room has been active for ROOM_INACTIVE_MS (it closes).
+function isAbandoned(room, now) {
+  return Object.values(room.players).every((p) => now - p.lastSeen > ROOM_INACTIVE_MS);
+}
+
 function isOnline(p, now) {
   return now - p.lastSeen < ONLINE_MS;
 }
 
 // Host is whoever created the room, handed to the next online player if they drop.
+// room.hostId is the crown's owner; it only changes when the owner gives
+// the crown away (see leave). While the owner has been inactive for
+// HOST_INACTIVE_MS, the longest-standing player still online holds it for
+// them, and it goes back to the owner as soon as they return.
 function effectiveHostId(room, now) {
   const host = room.players[room.hostId];
-  if (host && isOnline(host, now)) return room.hostId;
+  if (host && now - host.lastSeen < HOST_INACTIVE_MS) return room.hostId;
   const next = Object.values(room.players)
-    .filter((p) => isOnline(p, now))
+    .filter((p) => p.id !== room.hostId && isOnline(p, now))
     .sort((a, b) => a.joinedAt - b.joinedAt)[0];
-  return next ? next.id : room.hostId;
+  if (next) return next.id;
+  if (host) return room.hostId;
+  const anyone = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt)[0];
+  return anyone ? anyone.id : room.hostId;
 }
 
 // The sponsor's categories in a room: [{ label, checkAs }]. Rooms created
@@ -284,6 +298,7 @@ function publicState(room, playerId, now) {
     showPlayers: !!room.showPlayers,
     challenge: room.challenge || '',
     hostId: effectiveHostId(room, now),
+    ownerId: room.hostId,
     players: players.map((p) => ({
       id: p.id,
       name: p.name,
@@ -365,12 +380,27 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     if (isAdminEntry(adminCfg, name, avatar)) throw new GameError('admin_login', 'Admin sign-in');
   }
 
+  function closedError(room) {
+    return room.closedReason === 'inactive'
+      ? new GameError('room_inactive', 'This room was closed because nobody was active in it for 3 minutes.')
+      : new GameError('room_closed', 'The host closed the room.');
+  }
+
   async function load(code) {
     const res = await store.getWithMetadata(roomKey(code), { type: 'json', consistency: 'strong' });
     if (!res || !res.data) return null;
-    if (now() - res.data.createdAt > ROOM_TTL_MS) return null;
-    if (res.data.closed) throw new GameError('room_closed', 'The host closed the room.');
-    return { room: res.data, etag: res.etag };
+    const room = res.data;
+    const t = now();
+    if (t - room.createdAt > ROOM_TTL_MS) return null;
+    if (room.closed) throw closedError(room);
+    // Nobody in the room has been active for 3 minutes: it closes for good.
+    if (isAbandoned(room, t)) {
+      room.closed = true;
+      room.closedReason = 'inactive';
+      await store.setJSON(roomKey(code), room, { onlyIfMatch: res.etag }).catch(() => {});
+      throw closedError(room);
+    }
+    return { room, etag: res.etag };
   }
 
   // Read-modify-write with retry. `fn` mutates the room (or throws GameError);
@@ -804,17 +834,23 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room, playerId };
     },
 
-    // The room head (host) leaving chooses: close the room for everyone, or
-    // hand the crown to another player. Anyone else just leaves.
+    // The crown's owner leaving must choose: close the room for everyone, or
+    // hand the crown to another player for good (alone, the room closes).
+    // Anyone else — including someone only holding the crown while the owner
+    // is away — just leaves.
     async leave({ code, playerId, closeRoom, newHostId }) {
       await mutate(code, (r) => {
         if (!r.players[playerId]) return false;
-        const isHost = playerId === effectiveHostId(r, now());
-        if (isHost && closeRoom) {
+        const isHost = playerId === r.hostId;
+        const alone = Object.keys(r.players).length === 1;
+        if (isHost && (closeRoom || alone)) {
           r.closed = true;
           return;
         }
-        if (isHost && newHostId) {
+        if (isHost && !newHostId) {
+          throw new GameError('host_must_choose', 'Give the crown to another player or close the room.');
+        }
+        if (isHost) {
           if (newHostId === playerId || !isPlayerId(newHostId) || !Object.hasOwn(r.players, newHostId)) {
             throw new GameError('invalid_new_host', 'Pick a player who is still in the room.');
           }
@@ -823,7 +859,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         delete r.players[playerId];
         delete r.answers[playerId];
       }).catch((err) => {
-        if (err instanceof GameError && err.code === 'invalid_new_host') throw err;
+        if (err instanceof GameError && (err.code === 'invalid_new_host' || err.code === 'host_must_choose')) throw err;
       });
       return { room: null, playerId: null };
     },
@@ -836,8 +872,9 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     return rooms
       .filter(Boolean)
       .map((r) => {
-        const live = !r.closed && Object.values(r.players).some((p) => isOnline(p, t));
-        return roomSummary(r, r.closed ? 'closed' : live ? 'live' : 'open', t);
+        const closed = r.closed || isAbandoned(r, t);
+        const live = !closed && Object.values(r.players).some((p) => isOnline(p, t));
+        return roomSummary(r, closed ? 'closed' : live ? 'live' : 'open', t);
       });
   }
 
@@ -855,7 +892,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         blobs.slice(i, i + 20).map((b) => store.get(b.key, { type: 'json', consistency: 'strong' }).then((r) => [b.key, r]))
       );
       for (const [, r] of batch) {
-        if (!r || t - r.createdAt > ROOM_TTL_MS || r.closed) continue;
+        if (!r || t - r.createdAt > ROOM_TTL_MS || r.closed || isAbandoned(r, t)) continue;
         openRooms += 1;
         const players = Object.values(r.players).sort((a, b) => a.joinedAt - b.joinedAt);
         const online = players.filter((p) => isOnline(p, t));
