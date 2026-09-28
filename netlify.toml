@@ -5,3 +5,11 @@
 
 [functions]
   directory = "netlify/functions"
+
+# letterblitz.world is the site's address. Send visitors of the old Netlify
+# address there, keeping the path and any invite code (?room=ABCD).
+[[redirects]]
+  from = "https://letterblitz.netlify.app/*"
+  to = "https://letterblitz.world/:splat"
+  status = 301
+  force = true

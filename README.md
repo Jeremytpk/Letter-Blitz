@@ -16,7 +16,8 @@ Netlify Blobs. Each phone checks in about once a second to stay in sync.
 
 1. On [netlify.com](https://netlify.com), **Add new site \+ Import from Git** and
    pick this repo. `netlify.toml` already has the right settings.
-2. Deploy. Share the site URL &mdash; that's it. Netlify Blobs needs no setup.
+2. Deploy. The game lives at **https://letterblitz.world** (the old
+   `letterblitz.netlify.app` address redirects there). Netlify Blobs needs no setup.
 
 Every push to `main` redeploys automatically.
 

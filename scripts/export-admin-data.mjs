@@ -30,7 +30,7 @@ function loadEnv() {
 }
 
 const env = { ...loadEnv(), ...process.env };
-const SITE = (env.SITE_URL || 'https://letterblitz.netlify.app').replace(/\/$/, '');
+const SITE = (env.SITE_URL || 'https://letterblitz.world').replace(/\/$/, '');
 const deleteAfter = process.argv.includes('--delete-after');
 
 async function call(action, body = {}) {
