@@ -130,3 +130,10 @@ export function messagesCsv(items) {
     items.map((m) => [m.id, iso(m.createdAt), m.name, m.email, m.message, m.lang])
   );
 }
+
+export function claimsCsv(items) {
+  return toCsv(
+    ['campaign', 'awarded_at', 'prize_code', 'player_name', 'avatar', 'score', 'room_code', 'email', 'email_consent'],
+    items.map((c) => [c.campaignName, iso(c.createdAt), c.code, c.playerName, c.avatar, c.score, c.roomCode, c.email, c.consent ? 'yes' : 'no'])
+  );
+}

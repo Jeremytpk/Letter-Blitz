@@ -5,7 +5,10 @@
 
 import { createHash } from 'node:crypto';
 
+// Players' requests are small; only admin actions (sponsor logos and prize
+// codes) need more room.
 export const MAX_BODY_BYTES = 16 * 1024;
+export const MAX_ADMIN_BODY_BYTES = 256 * 1024;
 
 // Browsers always send Origin on POST. Requests from other websites are
 // refused (cross-site request forgery); tools without Origin (the export

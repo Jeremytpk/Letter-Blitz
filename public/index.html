@@ -125,6 +125,15 @@
     </section>
 
     <section class="admin-section">
+      <div class="admin-h2-row">
+        <h2 class="admin-h2"><span data-icon="trophy"></span><span data-i18n="sponsorsH">Sponsors</span> <span class="admin-count" id="admin-sponsors-count">0</span></h2>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-new-campaign" data-i18n="newCampaign">New campaign</button>
+      </div>
+      <p class="admin-note" data-i18n="sponsorsHint">Rooms created while a campaign is live show the sponsor, and the winner of an eligible game gets a prize code.</p>
+      <div class="admin-feed" id="admin-sponsors"></div>
+    </section>
+
+    <section class="admin-section">
       <h2 class="admin-h2"><button type="button" class="admin-h2-link" data-open-list="feedback"><span data-icon="star"></span><span data-i18n="feedbackH">Feedback</span> <span class="admin-count" id="admin-feedback-count">0</span><span data-icon="arrow-right"></span></button></h2>
       <p class="admin-note" id="admin-feedback-summary"></p>
       <div class="admin-feed" id="admin-feedback"></div>
@@ -149,6 +158,7 @@
           <button class="btn btn-secondary btn-sm" data-csv="players" data-i18n="csvPlayers">Players</button>
           <button class="btn btn-secondary btn-sm" data-csv="feedback" data-i18n="csvFeedback">Feedback</button>
           <button class="btn btn-secondary btn-sm" data-csv="messages" data-i18n="csvMessages">Messages</button>
+          <button class="btn btn-secondary btn-sm" data-csv="claims" data-i18n="csvClaims">Prize claims</button>
         </div>
         <p class="admin-note" data-i18n="csvHint">Rooms and Players include live rooms and the archive.</p>
       </div>
@@ -209,6 +219,92 @@
     <div class="admin-list" id="list-items"></div>
   </section>
 
+  <!-- ===================== ADMIN: SPONSOR CAMPAIGN EDITOR ===================== -->
+  <section class="view" id="view-admin-sponsor" hidden>
+    <header class="topbar">
+      <button type="button" class="page-back" id="btn-sponsor-back"><span data-icon="arrow-left"></span><span data-i18n="dashboard">Dashboard</span></button>
+      <div class="topbar-actions">
+        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
+      </div>
+    </header>
+    <h1 class="admin-title" id="sponsor-form-title">New campaign</h1>
+
+    <form class="sponsor-form" id="sponsor-form" novalidate>
+      <fieldset class="admin-card">
+        <legend class="stat-label" data-i18n="sfSponsor">Sponsor</legend>
+        <label class="field"><span class="field-label" data-i18n="sfName">Sponsor name</span><input id="sf-name" type="text" maxlength="60" required /></label>
+        <label class="field"><span class="field-label" data-i18n="sfUrl">Website (https://…)</span><input id="sf-url" type="url" maxlength="300" placeholder="https://" /></label>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfColor">Brand color</span><input id="sf-color" type="color" value="#ff3e6c" /></label>
+          <div class="field">
+            <span class="field-label" data-i18n="sfLogo">Logo</span>
+            <div class="sf-logo">
+              <img id="sf-logo-preview" alt="" hidden />
+              <label class="btn btn-secondary btn-sm"><span data-i18n="sfLogoPick">Choose image</span><input id="sf-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden /></label>
+              <button type="button" class="icon-btn" id="sf-logo-remove" data-i18n="deleteItem" hidden>Delete</button>
+            </div>
+          </div>
+        </div>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfTaglineEn">Tagline (English)</span><input id="sf-tagline-en" type="text" maxlength="120" /></label>
+          <label class="field"><span class="field-label" data-i18n="sfTaglineFr">Tagline (French)</span><input id="sf-tagline-fr" type="text" maxlength="120" /></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="admin-card">
+        <legend class="stat-label" data-i18n="sfPrize">Prize</legend>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfPrizeEn">Prize (English)</span><input id="sf-prize-en" type="text" maxlength="120" placeholder="20% off any juice" /></label>
+          <label class="field"><span class="field-label" data-i18n="sfPrizeFr">Prize (French)</span><input id="sf-prize-fr" type="text" maxlength="120" placeholder="20 % sur tous les jus" /></label>
+        </div>
+        <label class="field">
+          <span class="field-label" data-i18n="sfCodes">Add prize codes (one per line)</span>
+          <textarea id="sf-codes" rows="4" placeholder="JUICE-001&#10;JUICE-002"></textarea>
+        </label>
+        <p class="admin-note" id="sf-codes-info"></p>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfMinPlayers">Minimum players for a prize</span><input id="sf-min-players" type="number" min="2" max="12" value="3" /></label>
+          <label class="field"><span class="field-label" data-i18n="sfMinRounds">Minimum rounds for a prize</span>
+            <select id="sf-min-rounds"><option>1</option><option selected>3</option><option>5</option><option>7</option><option>11</option></select>
+          </label>
+        </div>
+        <label class="check-row"><input id="sf-email" type="checkbox" /><span data-i18n="sfCollectEmail">Ask winners for their email (so the sponsor can deliver the prize)</span></label>
+      </fieldset>
+
+      <fieldset class="admin-card">
+        <legend class="stat-label" data-i18n="sfCategory">Sponsored category (optional)</legend>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfCategoryEn">Category (English)</span><input id="sf-cat-en" type="text" maxlength="40" placeholder="Juice flavour" /></label>
+          <label class="field"><span class="field-label" data-i18n="sfCategoryFr">Category (French)</span><input id="sf-cat-fr" type="text" maxlength="40" placeholder="Parfum de jus" /></label>
+        </div>
+        <label class="field"><span class="field-label" data-i18n="sfCheckAs">Check answers as</span><select id="sf-check-as"></select></label>
+      </fieldset>
+
+      <fieldset class="admin-card">
+        <legend class="stat-label" data-i18n="sfWhen">When</legend>
+        <div class="sf-row">
+          <label class="field"><span class="field-label" data-i18n="sfStarts">Starts</span><input id="sf-starts" type="datetime-local" required /></label>
+          <label class="field"><span class="field-label" data-i18n="sfEnds">Ends</span><input id="sf-ends" type="datetime-local" required /></label>
+        </div>
+        <label class="switch"><input type="checkbox" id="sf-active" /><span class="switch-track" aria-hidden="true"></span><span data-i18n="sfActive">Campaign switched on</span></label>
+      </fieldset>
+
+      <fieldset class="admin-card">
+        <legend class="stat-label" data-i18n="sfRules">Extra rules (optional)</legend>
+        <div class="sf-row">
+          <label class="field"><span class="field-label">English</span><textarea id="sf-rules-en" rows="3" maxlength="2000"></textarea></label>
+          <label class="field"><span class="field-label">Français</span><textarea id="sf-rules-fr" rows="3" maxlength="2000"></textarea></label>
+        </div>
+      </fieldset>
+
+      <p class="error" id="sf-error" hidden></p>
+      <div class="sf-actions">
+        <button type="button" class="btn btn-secondary" id="sf-cancel" data-i18n="cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="sf-save" data-i18n="save">Save campaign</button>
+      </div>
+    </form>
+  </section>
+
   <!-- ===================== ROOM CLOSED ===================== -->
   <section class="view" id="view-closed" hidden>
     <div class="landing-top"><div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div></div>
@@ -232,6 +328,7 @@
       </div>
     </header>
 
+    <div class="sponsor-banner" id="lobby-sponsor" hidden></div>
     <p class="room-settings" id="lobby-settings"></p>
     <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
     <button class="btn btn-secondary invite-btn" id="btn-invite"><span data-icon="link"></span><span data-i18n="inviteFriends">Invite friends with a link</span></button>
@@ -323,6 +420,8 @@
       <div class="scores-hero-label" id="scores-round">Round 1</div>
       <div class="scores-hero-winner" id="scores-winner"></div>
     </div>
+
+    <div class="prize-card" id="prize-card" hidden></div>
 
     <div class="leaderboard" id="leaderboard">
       <h2 class="leaderboard-title" data-i18n="scores">Scores</h2>

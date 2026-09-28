@@ -11,9 +11,11 @@
 import { checkCategories } from './category.mjs';
 import { createStats } from './stats.mjs';
 import { createAdmin, isAdminEntry } from './admin.mjs';
-import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv } from './archive.mjs';
+import { archiveRoom, deleteArchive, listArchive, roomSummary, dailyCsv, roomsCsv, playersCsv, totalsCsv, feedbackCsv, messagesCsv, claimsCsv } from './archive.mjs';
 import { createInbox, InboxError } from './inbox.mjs';
 import { cleanText, isPlayerId, isRoomCode, underLimit } from './security.mjs';
+import { createSponsors, publicCampaign, SponsorError } from './sponsors.mjs';
+import { CATEGORY_SPEC } from './category-spec.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -168,6 +170,8 @@ function startRound(room, letter, now) {
   room.round += 1;
   room.letter = letter;
   room.categories = pickCategories(room.categoriesPerRound);
+  // A sponsor's category (if any) is played every round, after the others.
+  if (room.sponsor && room.sponsor.hasCategory) room.categories.push({ id: 'sponsor', label: room.sponsor.categoryLabel });
   room.phase = 'playing';
   room.startedAt = now + COUNTDOWN_MS;
   room.answers = {};
@@ -257,6 +261,13 @@ function publicState(room, playerId, now) {
     progress,
     reveal: room.phase === 'reveal' ? room.reveal : null,
     yourAnswers: room.answers[playerId] || {},
+    sponsorId: room.sponsor ? room.sponsor.id : null,
+    prizeResult: room.prizeResult || null,
+    // Prize codes go only to the player who won them.
+    yourPrize:
+      room.prizes && room.prizes[playerId]
+        ? { code: room.prizes[playerId].code, emailSaved: !!room.prizes[playerId].emailSaved }
+        : null,
   };
 }
 
@@ -264,6 +275,47 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
   const stats = createStats(store, now);
   const admin = createAdmin(store, adminCfg, now);
   const inbox = createInbox(store, now);
+  const sponsors = createSponsors(store, now, Object.keys(CATEGORY_SPEC));
+
+  async function sponsorCall(fn) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof SponsorError) throw new GameError(err.code, err.message);
+      throw err;
+    }
+  }
+
+  // After the last round of a sponsored game: prizes for the winner(s) of an
+  // eligible game (enough players and rounds), one per player per campaign.
+  async function awardPrizes(code, room) {
+    const campaign = await sponsors.get(room.sponsor.id);
+    const players = Object.values(room.players);
+    const best = Math.max(0, ...players.map((p) => p.totalScore));
+    const winners = best > 0 ? players.filter((p) => p.totalScore === best) : [];
+    let result;
+    const prizes = {};
+    if (!campaign) result = { status: 'ended' };
+    else if (players.length < room.sponsor.minPlayers || (room.totalRounds || DEFAULT_ROUNDS) < room.sponsor.minRounds) {
+      result = { status: 'not_eligible', minPlayers: room.sponsor.minPlayers, minRounds: room.sponsor.minRounds };
+    } else if (!winners.length) result = { status: 'no_winner' };
+    else {
+      const outcomes = [];
+      for (const w of winners) {
+        const out = await sponsors.award(campaign, w, code);
+        outcomes.push({ name: w.name, status: out.status });
+        if (out.status === 'awarded') prizes[w.id] = { code: out.code, claimKey: out.claimKey };
+      }
+      result = { status: Object.keys(prizes).length ? 'awarded' : outcomes[0].status, winners: outcomes };
+      if (Object.keys(prizes).length) await sponsors.bump(campaign.id, { prizes: Object.keys(prizes).length });
+    }
+    if (campaign) await sponsors.bump(campaign.id, { gamesCompleted: 1 });
+    return mutate(code, (r) => {
+      if (r.prizeResult) return false;
+      r.prizeResult = result;
+      r.prizes = prizes;
+    });
+  }
 
   // Turn inbox problems into errors the page can translate.
   async function inboxCall(fn) {
@@ -325,7 +377,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       for (const cat of room.categories) {
         const raw = String(answers[cat.id] || '').trim();
         const norm = normalize(raw);
-        if (norm && norm[0] === letter) toCheck.push({ catId: cat.id, text: raw });
+        if (!norm || norm[0] !== letter) continue;
+        // The sponsor's category is checked with the rule the admin picked (if any).
+        const catId = cat.id === 'sponsor' ? room.sponsor && room.sponsor.checkAs : cat.id;
+        if (catId) toCheck.push({ catId, text: raw });
       }
     }
     let found = new Map();
@@ -333,6 +388,12 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       found = await verify(toCheck, { timeLimitMs: CHECK_TIME_LIMIT_MS });
     } catch (err) {
       console.warn('Answer check failed:', err.message);
+    }
+    if (room.sponsor && room.sponsor.checkAs) {
+      for (const [key, value] of [...found]) {
+        const [catId, ...rest] = key.split('|');
+        if (catId === room.sponsor.checkAs) found.set(`sponsor|${rest.join('|')}`, value);
+      }
     }
 
     let scored = false;
@@ -344,6 +405,13 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     if (scored) {
       const players = Object.keys(result.players).length;
       await stats.bump({ roundsPlayed: 1, roomMs: result.duration, playerMs: result.duration * players });
+      if (result.sponsor && result.reveal && result.reveal.final) {
+        try {
+          return await awardPrizes(code, result);
+        } catch (err) {
+          console.error('Prize award failed:', err);
+        }
+      }
     }
     return result;
   }
@@ -357,6 +425,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       }
       const id = playerId || randomId(12);
       const t = now();
+      const campaign = await sponsors.active().catch(() => null);
       for (let i = 0; i < 20; i++) {
         const code = randomId(4, ROOM_CODE_CHARS);
         const room = {
@@ -375,10 +444,21 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           reveal: null,
           checkingSince: null,
           createdAt: t,
+          sponsor: campaign
+            ? {
+                id: campaign.id,
+                hasCategory: !!(campaign.categoryLabel.en || campaign.categoryLabel.fr),
+                categoryLabel: campaign.categoryLabel.en || campaign.categoryLabel.fr,
+                checkAs: campaign.checkAs,
+                minPlayers: campaign.minPlayers,
+                minRounds: campaign.minRounds,
+              }
+            : null,
         };
         const write = await store.setJSON(roomKey(code), room, { onlyIfNew: true });
         if (write.modified) {
           await stats.bump({ roomsCreated: 1 });
+          if (campaign) await sponsors.bump(campaign.id, { rooms: 1 });
           return { room, playerId: id };
         }
       }
@@ -467,6 +547,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         // Count the game, and each player the first time they ever play.
         const firsts = await Promise.all(Object.keys(room.players).map((id) => stats.firstTime('player', id)));
         await stats.bump({ gamesStarted: 1, uniquePlayers: firsts.filter(Boolean).length });
+        if (room.sponsor) await sponsors.bump(room.sponsor.id, { gamesStarted: 1, playersReached: Object.keys(room.players).length });
       }
       return { room, playerId };
     },
@@ -512,6 +593,63 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { dashboard: await dashboard() } };
     },
 
+    // ---- sponsors ----
+
+    // Public details of a campaign (logo, prize, rules) for the page.
+    async sponsorInfo({ id }) {
+      const c = await sponsors.get(id);
+      if (!c) throw new GameError('sponsor_not_found', 'Campaign not found.');
+      return { room: null, playerId: null, extra: { sponsor: publicCampaign(c) } };
+    },
+
+    // Count a click through to the sponsor's website.
+    async sponsorClick({ id }, meta) {
+      if ((await sponsors.get(id)) && (await underLimit(store, 'sclick', meta.ip, 30, 3600000, now()))) {
+        await sponsors.bump(id, { clicks: 1 });
+      }
+      return { room: null, playerId: null, extra: { ok: true } };
+    },
+
+    // Winner leaves an email (with consent) so the sponsor can deliver the prize.
+    async claimPrize({ code, playerId, email, consent }) {
+      const mail = cleanText(email, { max: 200 });
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new GameError('bad_email', 'That email address doesn’t look right.');
+      if (!consent) throw new GameError('need_consent', 'Please tick the box to agree.');
+      const room = await mutate(code, (r) => {
+        const prize = r.prizes && isPlayerId(playerId) && Object.hasOwn(r.prizes, playerId) ? r.prizes[playerId] : null;
+        if (!prize) throw new GameError('no_prize', 'No prize to claim.');
+        if (prize.emailSaved) return false;
+        prize.emailSaved = true;
+        prize.pendingEmail = mail;
+      });
+      const prize = room.prizes[playerId];
+      if (!prize.pendingEmail) return { room, playerId };
+      await sponsors.addEmail(prize.claimKey, prize.pendingEmail);
+      const updated = await mutate(code, (r) => {
+        delete r.prizes[playerId].pendingEmail;
+      });
+      return { room: updated, playerId };
+    },
+
+    async adminSponsors({ token }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      const list = await sponsors.list();
+      const reports = await Promise.all(list.map((c) => sponsors.report(c.id)));
+      return { room: null, playerId: null, extra: { campaigns: list.map((c, i) => ({ ...c, report: reports[i] })) } };
+    },
+
+    async adminSponsorSave({ token, campaign, addCodes }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      const saved = await sponsorCall(() => sponsors.save(campaign || {}, addCodes));
+      return { room: null, playerId: null, extra: { campaign: saved } };
+    },
+
+    async adminSponsorDelete({ token, id }) {
+      if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
+      if (await sponsors.get(id)) await sponsors.remove(id);
+      return { room: null, playerId: null, extra: { ok: true } };
+    },
+
     // Rating after the last round or on leaving a room.
     async feedback(body, meta) {
       await inboxCall(() => inbox.addFeedback({ ...body, roomCode: body.code }, meta.ip));
@@ -531,7 +669,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
 
     // CSV exports: 'daily' | 'rooms' | 'players' | 'totals' | 'feedback' | 'messages'.
-    async adminCsv({ token, dataset }) {
+    async adminCsv({ token, dataset, campaignId }) {
       if (!admin.verify(token)) throw new GameError('admin_expired', 'Please sign in again.');
       const t = now();
       const stamp = new Date(t).toISOString().slice(0, 10);
@@ -543,6 +681,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         csv = dataset === 'rooms' ? roomsCsv(rooms) : playersCsv(rooms);
       } else if (dataset === 'feedback') csv = feedbackCsv(await inbox.listFeedback());
       else if (dataset === 'messages') csv = messagesCsv(await inbox.listMessages());
+      else if (dataset === 'claims') csv = claimsCsv(await sponsors.claims(campaignId));
       else throw new GameError('bad_dataset', 'Unknown export.');
       return { room: null, playerId: null, extra: { csv, filename: `letter-blitz-${dataset}-${stamp}.csv` } };
     },
@@ -595,6 +734,8 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         r.startedAt = null;
         r.answers = {};
         r.reveal = null;
+        r.prizeResult = null;
+        r.prizes = null;
         for (const p of Object.values(r.players)) p.totalScore = 0;
       });
       return { room, playerId };

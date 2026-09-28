@@ -23,6 +23,7 @@
       closed: document.getElementById('view-closed'),
       admin: document.getElementById('view-admin'),
       adminList: document.getElementById('view-admin-list'),
+      adminSponsor: document.getElementById('view-admin-sponsor'),
     },
     nameInput: document.getElementById('name-input'),
     avatarGrid: document.getElementById('avatar-grid'),
@@ -46,6 +47,8 @@
     landingError: document.getElementById('landing-error'),
 
     lobbyCode: document.getElementById('lobby-code'),
+    lobbySponsor: document.getElementById('lobby-sponsor'),
+    prizeCard: document.getElementById('prize-card'),
     lobbyPlayers: document.getElementById('lobby-players'),
     btnStart: document.getElementById('btn-start'),
     lobbyWaitNote: document.getElementById('lobby-wait-note'),
@@ -95,6 +98,18 @@
     btnViewFeedback: document.getElementById('btn-view-feedback'),
     btnViewMessages: document.getElementById('btn-view-messages'),
     btnListBack: document.getElementById('btn-list-back'),
+    adminSponsors: document.getElementById('admin-sponsors'),
+    adminSponsorsCount: document.getElementById('admin-sponsors-count'),
+    btnNewCampaign: document.getElementById('btn-new-campaign'),
+    btnSponsorBack: document.getElementById('btn-sponsor-back'),
+    sponsorFormTitle: document.getElementById('sponsor-form-title'),
+    sponsorForm: document.getElementById('sponsor-form'),
+    sfError: document.getElementById('sf-error'),
+    sfLogo: document.getElementById('sf-logo'),
+    sfLogoPreview: document.getElementById('sf-logo-preview'),
+    sfLogoRemove: document.getElementById('sf-logo-remove'),
+    sfCodesInfo: document.getElementById('sf-codes-info'),
+    sfCheckAs: document.getElementById('sf-check-as'),
     listTitle: document.getElementById('list-title'),
     listCount: document.getElementById('list-count'),
     listSummary: document.getElementById('list-summary'),
@@ -196,6 +211,7 @@
       const code = data.errorCode;
       const err = new Error(code ? t(`err_${code}`) : t('somethingWrong'));
       err.code = code;
+      err.serverMessage = data.error;
       err.fatal = code === 'room_not_found' || code === 'not_in_room' || code === 'room_closed';
       throw err;
     }
@@ -526,8 +542,12 @@
   async function loadDashboard() {
     clearTimeout(adminTimer);
     try {
-      const data = await api('adminStats', { token: ssGet(SS_ADMIN) });
+      const [data, sponsorsData] = await Promise.all([
+        api('adminStats', { token: ssGet(SS_ADMIN) }),
+        api('adminSponsors', { token: ssGet(SS_ADMIN) }),
+      ]);
       lastDashboard = data.dashboard;
+      lastCampaigns = sponsorsData.campaigns || [];
       renderDashboard();
     } catch (err) {
       if (err.code === 'admin_expired') {
@@ -550,10 +570,10 @@
   els.btnAdminRefresh.addEventListener('click', loadDashboard);
 
   // CSV downloads (built on the server, saved by the browser).
-  async function downloadCsv(dataset, btn) {
+  async function downloadCsv(dataset, btn, extra = {}) {
     btn.disabled = true;
     try {
-      const data = await api('adminCsv', { token: ssGet(SS_ADMIN), dataset });
+      const data = await api('adminCsv', { token: ssGet(SS_ADMIN), dataset, ...extra });
       const url = URL.createObjectURL(new Blob([data.csv], { type: 'text/csv;charset=utf-8' }));
       const a = document.createElement('a');
       a.href = url;
@@ -695,6 +715,219 @@
     els.btnViewMessages.textContent = t('viewAll', { n: fmt(messages.length) });
   }
 
+  // ---- sponsor campaigns ----
+
+  let lastCampaigns = [];
+  let editingCampaign = null; // campaign being edited, or null for a new one
+  let pendingLogo; // undefined = unchanged, '' = removed, data URL = new logo
+  const CHECK_AS = ['country', 'capital', 'city', 'man', 'woman', 'singer', 'car', 'actor', 'fruit', 'animal', 'food', 'vegetable', 'athlete', 'movie_tv', 'brand', 'job', 'sport'];
+
+  function campaignStatus(c) {
+    const now = Date.now();
+    if (!c.active) return 'paused';
+    if (now < c.startsAt) return 'scheduled';
+    if (now >= c.endsAt) return 'ended';
+    return 'live';
+  }
+
+  function renderCampaigns() {
+    const list = lastCampaigns || [];
+    els.adminSponsorsCount.textContent = fmt(list.length);
+    els.adminSponsors.innerHTML = '';
+    if (!list.length) emptyNote(els.adminSponsors, t('noCampaigns'));
+    const dateFmt = (ms) => new Date(ms).toLocaleDateString(window.i18n.lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'medium' });
+    for (const c of list) {
+      const r = c.report || {};
+      const status = campaignStatus(c);
+      const card = document.createElement('div');
+      card.className = 'feed-item campaign-card';
+      card.style.setProperty('--sponsor-color', c.color);
+      const head = document.createElement('div');
+      head.className = 'feed-head';
+      head.appendChild(sponsorLogo(c));
+      head.insertAdjacentHTML('beforeend', `<div class="feed-who"><span class="feed-name"></span><span class="feed-meta"></span></div><span class="campaign-status${status === 'live' ? ' is-live' : ''}"></span>`);
+      head.querySelector('.feed-name').textContent = c.name;
+      head.querySelector('.feed-meta').textContent = `${dateFmt(c.startsAt)} → ${dateFmt(c.endsAt)} · ${sText(c.prize)}`;
+      head.querySelector('.campaign-status').textContent = t(`status_${status}`);
+      card.appendChild(head);
+      const stats = document.createElement('div');
+      stats.className = 'campaign-stats';
+      for (const [value, label] of [
+        [r.rooms, 'cRooms'],
+        [r.playersReached, 'cReached'],
+        [r.gamesCompleted, 'cGames'],
+        [r.prizes, 'cPrizes'],
+        [r.codesLeft, 'cCodesLeft'],
+        [r.clicks, 'cClicks'],
+      ]) {
+        const div = document.createElement('div');
+        div.innerHTML = '<b></b><span></span>';
+        div.querySelector('b').textContent = fmt(value);
+        div.querySelector('span').textContent = t(label);
+        stats.appendChild(div);
+      }
+      card.appendChild(stats);
+      const actions = document.createElement('div');
+      actions.className = 'campaign-actions';
+      const btn = (label, cls, onClick) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `btn ${cls} btn-sm`;
+        b.textContent = label;
+        b.addEventListener('click', () => onClick(b));
+        actions.appendChild(b);
+      };
+      btn(t('edit'), 'btn-secondary', () => openCampaignEditor(c));
+      btn(t('claimsCsv'), 'btn-secondary', (b) => downloadCsv('claims', b, { campaignId: c.id }));
+      btn(t('deleteItem'), 'btn-danger-outline', async () => {
+        if (!window.confirm(t('confirmDeleteCampaign', { name: c.name }))) return;
+        try {
+          await api('adminSponsorDelete', { token: ssGet(SS_ADMIN), id: c.id });
+          loadDashboard();
+        } catch (err) {
+          if (err.code === 'admin_expired') adminSignOut(err.message);
+          else showToast(err.message);
+        }
+      });
+      card.appendChild(actions);
+      els.adminSponsors.appendChild(card);
+    }
+  }
+
+  // <input type="datetime-local"> works in the admin's local time.
+  const toLocalInput = (ms) => {
+    const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 16);
+  };
+  const field = (id) => document.getElementById(id);
+
+  function openCampaignEditor(c) {
+    editingCampaign = c || null;
+    pendingLogo = undefined;
+    els.sfError.hidden = true;
+    els.sponsorFormTitle.textContent = t(c ? 'editCampaign' : 'newCampaign');
+    els.sfCheckAs.innerHTML = '';
+    for (const id of ['', ...CHECK_AS]) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id ? categoryLabel({ id }) : t('sfCheckNone');
+      els.sfCheckAs.appendChild(opt);
+    }
+    const now = Date.now();
+    field('sf-name').value = c ? c.name : '';
+    field('sf-url').value = c ? c.url : '';
+    field('sf-color').value = c ? c.color : '#ff3e6c';
+    field('sf-tagline-en').value = c ? c.tagline.en : '';
+    field('sf-tagline-fr').value = c ? c.tagline.fr : '';
+    field('sf-prize-en').value = c ? c.prize.en : '';
+    field('sf-prize-fr').value = c ? c.prize.fr : '';
+    field('sf-codes').value = '';
+    field('sf-min-players').value = c ? c.minPlayers : 3;
+    field('sf-min-rounds').value = String(c ? c.minRounds : 3);
+    field('sf-email').checked = c ? c.collectEmail : false;
+    field('sf-cat-en').value = c ? c.categoryLabel.en : '';
+    field('sf-cat-fr').value = c ? c.categoryLabel.fr : '';
+    els.sfCheckAs.value = c ? c.checkAs : '';
+    field('sf-starts').value = toLocalInput(c ? c.startsAt : now);
+    field('sf-ends').value = toLocalInput(c ? c.endsAt : now + 30 * 86400000);
+    field('sf-active').checked = c ? c.active : true;
+    field('sf-rules-en').value = c ? c.extraRules.en : '';
+    field('sf-rules-fr').value = c ? c.extraRules.fr : '';
+    showLogoPreview(c ? c.logo : '');
+    const rep = c && c.report;
+    els.sfCodesInfo.textContent = rep ? t('sfCodesInfo', { total: fmt(rep.codesTotal), left: fmt(rep.codesLeft) }) : '';
+    showView('adminSponsor');
+    window.scrollTo(0, 0);
+  }
+
+  function showLogoPreview(src) {
+    els.sfLogoPreview.hidden = !src;
+    els.sfLogoRemove.hidden = !src;
+    if (src) els.sfLogoPreview.src = src;
+    else els.sfLogoPreview.removeAttribute('src');
+  }
+
+  // Shrink the chosen logo to at most 256 px so it stays small.
+  els.sfLogo.addEventListener('change', async () => {
+    const file = els.sfLogo.files[0];
+    els.sfLogo.value = '';
+    if (!file) return;
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      await new Promise((ok, fail) => {
+        img.onload = ok;
+        img.onerror = fail;
+        img.src = url;
+      });
+      URL.revokeObjectURL(url);
+      let size = 256;
+      let data = '';
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const scale = Math.min(1, size / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        data = canvas.toDataURL('image/webp', 0.85);
+        if (!data.startsWith('data:image/webp')) data = canvas.toDataURL('image/png');
+        if (data.length <= 110 * 1024) break;
+        size = Math.round(size * 0.7);
+      }
+      if (data.length > 110 * 1024) throw new Error(t('sfLogoTooBig'));
+      pendingLogo = data;
+      showLogoPreview(data);
+    } catch (err) {
+      showToast(err.message || t('sfLogoTooBig'));
+    }
+  });
+  els.sfLogoRemove.addEventListener('click', () => {
+    pendingLogo = '';
+    showLogoPreview('');
+  });
+
+  els.sponsorForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    els.sfError.hidden = true;
+    const toIso = (v) => (v ? new Date(v).toISOString() : '');
+    const campaign = {
+      id: editingCampaign ? editingCampaign.id : undefined,
+      name: field('sf-name').value,
+      url: field('sf-url').value,
+      color: field('sf-color').value,
+      tagline: { en: field('sf-tagline-en').value, fr: field('sf-tagline-fr').value },
+      prize: { en: field('sf-prize-en').value, fr: field('sf-prize-fr').value },
+      categoryLabel: { en: field('sf-cat-en').value, fr: field('sf-cat-fr').value },
+      checkAs: els.sfCheckAs.value,
+      minPlayers: Number(field('sf-min-players').value),
+      minRounds: Number(field('sf-min-rounds').value),
+      collectEmail: field('sf-email').checked,
+      extraRules: { en: field('sf-rules-en').value, fr: field('sf-rules-fr').value },
+      startsAt: toIso(field('sf-starts').value),
+      endsAt: toIso(field('sf-ends').value),
+      active: field('sf-active').checked,
+    };
+    if (pendingLogo !== undefined) campaign.logo = pendingLogo;
+    try {
+      await api('adminSponsorSave', { token: ssGet(SS_ADMIN), campaign, addCodes: field('sf-codes').value });
+      showToast(t('saved'));
+      showView('admin');
+      loadDashboard();
+    } catch (err) {
+      if (err.code === 'admin_expired') return adminSignOut(err.message);
+      els.sfError.textContent = err.code === 'sponsor_invalid' ? err.serverMessage || err.message : err.message;
+      els.sfError.hidden = false;
+    }
+  });
+  els.btnNewCampaign.addEventListener('click', () => openCampaignEditor(null));
+  const leaveEditor = () => {
+    showView('admin');
+    renderDashboard();
+    window.scrollTo(0, 0);
+  };
+  els.btnSponsorBack.addEventListener('click', leaveEditor);
+  field('sf-cancel').addEventListener('click', leaveEditor);
+
   // ---- full page: every feedback entry or message ----
 
   let listMode = null; // 'feedback' | 'messages'
@@ -787,6 +1020,7 @@
 
     renderInbox(d);
     renderList();
+    renderCampaigns();
 
     els.adminRoomsCount.textContent = fmt(d.rooms.length);
     els.adminRooms.innerHTML = '';
@@ -1015,11 +1249,20 @@
     const st = currentState;
     if (st && st.reveal && st.reveal.final && !feedbackGiven(st.code)) {
       const me = st.players.find((p) => p.id === myPlayerId);
-      setTimeout(() => {
-        if (currentState && currentState.phase === 'reveal' && !els.views.scores.hidden) {
-          openFeedback('game_over', { name: me ? me.name : '', avatar: myAvatar, code: st.code });
+      // In a prize game, give players time to see the prize (and the winner
+      // time to leave their email) before asking for a rating.
+      const ask = () => {
+        if (!currentState || currentState.phase !== 'reveal' || els.views.scores.hidden) return;
+        const prize = currentState.yourPrize;
+        const busy = els.prizeCard.contains(document.activeElement);
+        const sp = sponsorFor(currentState);
+        if (busy || (prize && sp && sp.collectEmail && !prize.emailSaved)) {
+          setTimeout(ask, 5000);
+          return;
         }
-      }, 1500);
+        openFeedback('game_over', { name: me ? me.name : '', avatar: myAvatar, code: st.code });
+      };
+      setTimeout(ask, st.sponsorId ? 15000 : 1500);
     }
   });
   els.btnPlayAgain.addEventListener('click', () => {
@@ -1035,6 +1278,209 @@
     if (currentState) render(currentState);
     window.scrollTo(0, 0);
   });
+
+  // ---------------- sponsors ----------------
+
+  // Campaign details (logo, prize…) are fetched once per campaign.
+  const sponsorCache = new Map(); // id -> details, or 'loading'
+  function sponsorFor(state) {
+    const id = state && state.sponsorId;
+    if (!id) return null;
+    const cached = sponsorCache.get(id);
+    if (cached && cached !== 'loading') return cached;
+    if (!cached) {
+      sponsorCache.set(id, 'loading');
+      api('sponsorInfo', { id })
+        .then((d) => {
+          sponsorCache.set(id, d.sponsor);
+          if (currentState) render(currentState);
+        })
+        .catch(() => sponsorCache.delete(id));
+    }
+    return null;
+  }
+  const sText = (obj) => (obj && (obj[window.i18n.lang] || obj.en || obj.fr)) || '';
+
+  // Category names, including the sponsor's own category.
+  function catLabel(cat) {
+    if (cat.id === 'sponsor') {
+      const sp = sponsorFor(currentState);
+      return (sp && sText(sp.categoryLabel)) || cat.label || t('sponsored');
+    }
+    return categoryLabel(cat);
+  }
+
+  function sponsorLogo(sp, cls = 'sponsor-logo') {
+    if (sp.logo) {
+      const img = document.createElement('img');
+      img.className = cls;
+      img.alt = sp.name;
+      img.src = sp.logo;
+      return img;
+    }
+    const div = document.createElement('div');
+    div.className = `${cls} sponsor-logo-fallback`;
+    div.textContent = sp.name.trim().slice(0, 1).toUpperCase();
+    return div;
+  }
+
+  function sponsorHead(sp) {
+    const head = document.createElement('div');
+    head.className = 'sponsor-head';
+    head.appendChild(sponsorLogo(sp));
+    const who = document.createElement('div');
+    who.className = 'sponsor-who';
+    who.innerHTML = '<span class="sponsor-by"></span><span class="sponsor-name"></span><span class="sponsor-tagline"></span>';
+    who.querySelector('.sponsor-by').textContent = t('presentedBy');
+    who.querySelector('.sponsor-name').textContent = sp.name;
+    who.querySelector('.sponsor-tagline').textContent = sText(sp.tagline);
+    head.appendChild(who);
+    return head;
+  }
+
+  function sponsorLinks(sp) {
+    const links = document.createElement('div');
+    links.className = 'sponsor-links';
+    const rules = document.createElement('a');
+    rules.href = `/rules.html?c=${encodeURIComponent(sp.id)}`;
+    rules.target = '_blank';
+    rules.rel = 'noopener';
+    rules.textContent = t('rulesLink');
+    links.appendChild(rules);
+    if (sp.url) {
+      const visit = document.createElement('a');
+      visit.href = sp.url;
+      visit.target = '_blank';
+      visit.rel = 'noopener noreferrer sponsored';
+      visit.textContent = t('visitSponsor', { name: sp.name });
+      visit.addEventListener('click', () => api('sponsorClick', { id: sp.id }).catch(() => {}));
+      links.appendChild(visit);
+    }
+    return links;
+  }
+
+  function renderSponsorBanner(el, sp) {
+    el.hidden = !sp;
+    if (!sp) return;
+    el.style.setProperty('--sponsor-color', sp.color);
+    el.innerHTML = '';
+    el.appendChild(sponsorHead(sp));
+    if (sText(sp.prize)) {
+      const prize = document.createElement('p');
+      prize.className = 'sponsor-prize';
+      prize.innerHTML = `${icon('trophy')}<span></span>`;
+      prize.querySelector('span').textContent = t('winnerGets', { prize: sText(sp.prize) });
+      el.appendChild(prize);
+    }
+    const need = document.createElement('p');
+    need.className = 'sponsor-need';
+    need.textContent = t('prizeNeeds', { players: sp.minPlayers, rounds: sp.minRounds });
+    el.appendChild(need);
+    el.appendChild(sponsorLinks(sp));
+  }
+
+  // Mark the sponsor's category in the answer list.
+  function decorateSponsorRow(sp) {
+    const row = els.categoryList.querySelector('.category-row[data-cat-id="sponsor"]');
+    if (!row) return;
+    row.classList.add('is-sponsored');
+    row.querySelector('.category-label').textContent = catLabel({ id: 'sponsor' });
+    if (sp) {
+      row.style.setProperty('--sponsor-color', sp.color);
+      if (!row.querySelector('.sponsor-tag')) {
+        const tag = document.createElement('span');
+        tag.className = 'sponsor-tag';
+        if (sp.logo) tag.appendChild(sponsorLogo(sp, ''));
+        tag.appendChild(document.createTextNode(sp.name));
+        row.querySelector('.category-label').after(tag);
+      }
+    }
+  }
+
+  // Final scores: the winner's prize code, or what happened to the prize.
+  let prizeCardKey = '';
+  function renderPrizeCard(state) {
+    const sp = sponsorFor(state);
+    const final = state.reveal && state.reveal.final;
+    els.prizeCard.hidden = !(final && state.sponsorId);
+    if (els.prizeCard.hidden) {
+      prizeCardKey = '';
+      return;
+    }
+    const r = state.prizeResult;
+    const mine = state.yourPrize;
+    // Don't rebuild while the winner is typing their email.
+    const key = JSON.stringify([!!sp, r, mine, window.i18n.lang]);
+    if (key === prizeCardKey) return;
+    prizeCardKey = key;
+    const card = els.prizeCard;
+    card.innerHTML = '';
+    if (sp) {
+      card.style.setProperty('--sponsor-color', sp.color);
+      card.appendChild(sponsorHead(sp));
+    }
+    const add = (tag, cls, text) => {
+      const el = document.createElement(tag);
+      el.className = cls;
+      el.textContent = text;
+      card.appendChild(el);
+      return el;
+    };
+    const name = sp ? sp.name : '';
+    const prize = sp ? sText(sp.prize) : '';
+    if (!r) {
+      add('p', 'prize-text', t('prizeChecking'));
+    } else if (mine) {
+      add('h3', 'prize-title', t('youWonPrize'));
+      add('p', 'prize-text', t('yourCode', { prize }));
+      const row = document.createElement('div');
+      row.className = 'prize-code-row';
+      row.innerHTML = '<span class="prize-code"></span><button type="button" class="btn btn-secondary btn-sm"></button>';
+      row.querySelector('.prize-code').textContent = mine.code;
+      const copy = row.querySelector('button');
+      copy.textContent = t('copyCode');
+      copy.addEventListener('click', () => {
+        navigator.clipboard.writeText(mine.code).then(() => showToast(t('codeCopied')), () => {});
+      });
+      card.appendChild(row);
+      if (sp && sp.collectEmail && !mine.emailSaved) {
+        const form = document.createElement('form');
+        form.className = 'prize-email';
+        form.innerHTML = `<p class="admin-note"></p><input type="email" required maxlength="200" autocomplete="email" /><label class="check-row"><input type="checkbox" /><span></span></label><p class="error" hidden></p><button type="submit" class="btn btn-primary"></button>`;
+        form.querySelector('.admin-note').textContent = t('prizeEmailAsk', { name });
+        form.querySelector('.check-row span').textContent = t('prizeEmailConsent', { name });
+        form.querySelector('button').textContent = t('prizeEmailSend');
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const err = form.querySelector('.error');
+          err.hidden = true;
+          try {
+            await api('claimPrize', {
+              email: form.querySelector('input[type="email"]').value,
+              consent: form.querySelector('input[type="checkbox"]').checked,
+            });
+          } catch (ex) {
+            err.textContent = ex.message;
+            err.hidden = false;
+          }
+        });
+        card.appendChild(form);
+      } else if (sp && sp.collectEmail) {
+        add('p', 'prize-text', t('prizeEmailSaved', { name }));
+      }
+      if (sp && sp.url) card.appendChild(sponsorLinks(sp));
+    } else {
+      const names = (r.winners || []).map((w) => w.name).join(t('and'));
+      const text = {
+        awarded: t('prizeAwarded', { names, prize, name }),
+        already_won: t('prizeAlreadyWon', { names, name }),
+        no_codes: t('prizeNoCodes', { name }),
+        not_eligible: t('prizeNotEligible', { players: r.minPlayers, rounds: r.minRounds }),
+      }[r.status] || t('prizeNoWinner');
+      add('p', 'prize-text', text);
+      if (sp) card.appendChild(sponsorLinks(sp));
+    }
+  }
 
   // ---------------- render ----------------
 
@@ -1064,6 +1510,7 @@
 
   function renderLobby(state) {
     els.lobbyCode.textContent = state.code;
+    renderSponsorBanner(els.lobbySponsor, sponsorFor(state));
     els.lobbySettings.textContent = t('lobbySettings', {
       rounds: roundsText(state.totalRounds),
       seconds: Math.round(state.duration / 1000),
@@ -1126,7 +1573,7 @@
           </div>
         `;
         row.dataset.catId = cat.id;
-        row.querySelector('.category-label').textContent = categoryLabel(cat);
+        row.querySelector('.category-label').textContent = catLabel(cat);
         const input = row.querySelector('.category-input');
         input.placeholder = t('startsWith', { letter: state.letter });
         input.value = (state.yourAnswers || {})[cat.id] || '';
@@ -1141,6 +1588,7 @@
     startTimerLoop(state.startedAt, state.duration);
     renderProgress(state.progress);
     renderPlayersPanel(state);
+    if (state.sponsorId) decorateSponsorRow(sponsorFor(state));
     // Time's up but the server hasn't switched to checking yet: keep the note.
     if (serverNow() >= state.startedAt + state.duration) renderChecking();
   }
@@ -1322,7 +1770,7 @@
       block.className = 'reveal-cat';
       const title = document.createElement('div');
       title.className = 'reveal-cat-title';
-      title.textContent = categoryLabel({ id: cat.catId, label: cat.label });
+      title.textContent = catLabel({ id: cat.catId, label: cat.label });
       block.appendChild(title);
 
       const answers = document.createElement('div');
@@ -1358,7 +1806,7 @@
         else if (hasText) pointsLabel = t('dupe');
         chip.querySelector('.answer-chip-points').textContent = pointsLabel;
         if (notFound) chip.title = t('notFoundHint');
-        if (wrongCategory) chip.title = t('wrongCategoryHint', { category: categoryLabel({ id: cat.catId, label: cat.label }) });
+        if (wrongCategory) chip.title = t('wrongCategoryHint', { category: catLabel({ id: cat.catId, label: cat.label }) });
         answers.appendChild(chip);
       }
       block.appendChild(answers);
@@ -1405,6 +1853,7 @@
       );
     }
 
+    renderPrizeCard(state);
     els.leaderboardList.innerHTML = '';
     const ranked = [...state.players].sort((a, b) => b.totalScore - a.totalScore);
     ranked.forEach((p, i) => {
@@ -1593,7 +2042,7 @@
   window.i18n.onChange(() => {
     // Relabel the answer fields in place so nothing typed is lost.
     for (const row of els.categoryList.querySelectorAll('.category-row')) {
-      row.querySelector('.category-label').textContent = categoryLabel({ id: row.dataset.catId });
+      row.querySelector('.category-label').textContent = catLabel({ id: row.dataset.catId });
       if (currentState && currentState.letter) {
         row.querySelector('.category-input').placeholder = t('startsWith', { letter: currentState.letter });
       }

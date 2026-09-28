@@ -114,3 +114,11 @@ Open the URL it prints (usually `http://localhost:8888`).
   network address. Admin tokens are signed with `ADMIN_SECRET` (a random
   Netlify environment variable); CSV exports neutralise spreadsheet
   formulas. Report problems via `/.well-known/security.txt`.
+- **Sponsors & prizes:** the admin dashboard's Sponsors section creates
+  campaigns (logo, prize, dates, optional sponsored category, prize codes).
+  Rooms created while a campaign is live show the sponsor; the winner of an
+  eligible game (minimum players and rounds) gets the next unused code, one
+  prize per player per campaign, and can leave an email (with consent) for
+  delivery. Each campaign has a rules page (`/rules.html?c=<id>`) and a
+  report (rooms, players reached, games, prizes, codes left, site visits).
+  See `netlify/lib/sponsors.mjs`.

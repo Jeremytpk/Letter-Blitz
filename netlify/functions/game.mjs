@@ -1,7 +1,7 @@
 import { getStore } from '@netlify/blobs';
 import { createGame, GameError } from '../lib/game.mjs';
 import { adminConfig } from '../lib/admin.mjs';
-import { MAX_BODY_BYTES, originAllowed, tooManyRequests } from '../lib/security.mjs';
+import { MAX_ADMIN_BODY_BYTES, MAX_BODY_BYTES, originAllowed, tooManyRequests } from '../lib/security.mjs';
 
 // API responses are never cached and never reinterpreted by the browser.
 const HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
@@ -15,13 +15,17 @@ export default async (req, context) => {
   if (tooManyRequests(ip)) return reply({ error: 'Too many requests. Slow down.', errorCode: 'too_many', now: Date.now() }, 429);
 
   const declared = Number(req.headers.get('content-length') || 0);
-  if (declared > MAX_BODY_BYTES) return reply({ error: 'Request too large.' }, 413);
+  if (declared > MAX_ADMIN_BODY_BYTES) return reply({ error: 'Request too large.' }, 413);
   let body;
   try {
     const text = await req.text();
-    if (text.length > MAX_BODY_BYTES) return reply({ error: 'Request too large.' }, 413);
+    if (text.length > MAX_ADMIN_BODY_BYTES) return reply({ error: 'Request too large.' }, 413);
     body = JSON.parse(text);
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('not an object');
+    // Only admin actions may be large (they still need a valid admin token).
+    if (text.length > MAX_BODY_BYTES && !String(body.action || '').startsWith('admin')) {
+      return reply({ error: 'Request too large.' }, 413);
+    }
   } catch {
     return reply({ error: 'Bad request.' }, 400);
   }
