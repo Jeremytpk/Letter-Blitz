@@ -69,6 +69,16 @@
     sponsorPick: document.getElementById('sponsor-pick'),
     sponsorOptions: document.getElementById('sponsor-options'),
     lobbySettings: document.getElementById('lobby-settings'),
+    lobbyChallenge: document.getElementById('lobby-challenge'),
+    lobbyChallengeText: document.getElementById('lobby-challenge-text'),
+    challengeInput: document.getElementById('challenge-input'),
+    btnChallengeInfo: document.getElementById('btn-challenge-info'),
+    challengeInfo: document.getElementById('challenge-info'),
+    btnShowAllScores: document.getElementById('btn-show-all-scores'),
+    finalChallenge: document.getElementById('final-challenge'),
+    finalChallengeText: document.getElementById('final-challenge-text'),
+    finalChallengeLosers: document.getElementById('final-challenge-losers'),
+    finalChallengeVerdict: document.getElementById('final-challenge-verdict'),
     roundCounter: document.getElementById('round-counter'),
     btnPlayAgain: document.getElementById('btn-play-again'),
 
@@ -405,8 +415,15 @@
         duration: Number(els.durationInput.value) * 1000,
         categoriesPerRound: Number(els.catcountInput.value),
         sponsorId: prizeGame ? chosenSponsor : undefined,
+        challenge: els.challengeInput.value.trim() || undefined,
       },
     });
+  });
+
+  els.btnChallengeInfo.addEventListener('click', () => {
+    const open = els.challengeInfo.hidden;
+    els.challengeInfo.hidden = !open;
+    els.btnChallengeInfo.setAttribute('aria-expanded', String(open));
   });
 
   // ---------------- game type: just for fun / real prizes ----------------
@@ -1679,6 +1696,9 @@
       seconds: Math.round(state.duration / 1000),
       cats: state.categoriesPerRound,
     });
+    showAllFinal = false;
+    els.lobbyChallenge.hidden = !state.challenge;
+    els.lobbyChallengeText.textContent = state.challenge ? `“${state.challenge}”` : '';
     els.lobbyPlayers.innerHTML = '';
     const sorted = [...state.players].sort((a, b) => a.name.localeCompare(b.name));
     for (const p of sorted) {
@@ -2019,7 +2039,11 @@
     renderPrizeCard(state);
     els.leaderboardList.innerHTML = '';
     const ranked = [...state.players].sort((a, b) => b.totalScore - a.totalScore);
-    ranked.forEach((p, i) => {
+    // Final results show the top 5; everyone else is one tap away.
+    const shortList = reveal.final && ranked.length > FINAL_TOP && !showAllFinal;
+    els.btnShowAllScores.hidden = !(reveal.final && ranked.length > FINAL_TOP);
+    els.btnShowAllScores.textContent = showAllFinal ? t('showTopFive') : t('showAllPlayers', { count: ranked.length });
+    (shortList ? ranked.slice(0, FINAL_TOP) : ranked).forEach((p, i) => {
       const li = document.createElement('li');
       li.className = 'player-row' + (p.id === myPlayerId ? ' is-me' : '');
       li.innerHTML = `
@@ -2034,6 +2058,7 @@
       li.querySelector('.player-score').textContent = t('pts', { points: p.totalScore });
       els.leaderboardList.appendChild(li);
     });
+    renderFinalChallenge(state, ranked);
 
     els.letterPicker.hidden = !amWinner;
     els.revealWaitNote.hidden = amWinner;
@@ -2063,6 +2088,41 @@
     if (!amWinner) {
       els.letterGrid.innerHTML = '';
     }
+  }
+
+  const FINAL_TOP = 5;
+  let showAllFinal = false;
+  els.btnShowAllScores.addEventListener('click', () => {
+    showAllFinal = !showAllFinal;
+    if (currentState) renderScores(currentState);
+  });
+
+  // After the last round: who takes on the room's party challenge — whoever
+  // has the lowest total (everyone tied on it if several are).
+  function renderFinalChallenge(state, ranked) {
+    const show = !!(state.reveal.final && state.challenge && ranked.length > 1);
+    els.finalChallenge.hidden = !show;
+    if (!show) return;
+    els.finalChallengeText.textContent = `“${state.challenge}”`;
+    const lowest = ranked[ranked.length - 1].totalScore;
+    const losers = ranked.filter((p) => p.totalScore === lowest);
+    const everyoneTied = losers.length === ranked.length;
+    els.finalChallengeLosers.innerHTML = '';
+    if (!everyoneTied) {
+      for (const p of losers) {
+        const who = document.createElement('div');
+        who.className = 'challenge-loser' + (p.id === myPlayerId ? ' is-me' : '');
+        who.innerHTML = `<span class="player-avatar">${avatarHTML(p.avatar, p.name)}</span><span class="challenge-loser-name"></span><span class="challenge-loser-score"></span>`;
+        who.querySelector('.challenge-loser-name').textContent = p.name + (p.id === myPlayerId ? ` (${t('you')})` : '');
+        who.querySelector('.challenge-loser-score').textContent = t('pts', { points: p.totalScore });
+        els.finalChallengeLosers.appendChild(who);
+      }
+    }
+    els.finalChallengeVerdict.textContent = everyoneTied
+      ? t('challengeNobody')
+      : losers.some((p) => p.id === myPlayerId)
+        ? t('challengeOnYou')
+        : t('challengeFallsOn', { names: losers.map((p) => p.name).join(t('and')) });
   }
 
   setTab('join');

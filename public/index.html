@@ -111,6 +111,16 @@
         <span class="field-label"><span data-i18n="categoriesPerRound">Categories per round:</span> <span id="catcount-out">9</span></span>
         <input id="catcount-input" type="range" min="4" max="12" step="1" value="9" />
       </label>
+      <div class="field">
+        <label class="field-label" for="challenge-input" data-i18n="challengeLabel">Party challenge (optional)</label>
+        <input id="challenge-input" type="text" maxlength="100" autocomplete="off" data-i18n-placeholder="challengePlaceholder" placeholder="e.g. The loser drinks 2 bottles of water" />
+        <p class="field-hint"><span data-i18n="challengeHint">Whoever finishes last takes it on.</span> <button type="button" class="text-btn" id="btn-challenge-info" aria-expanded="false" aria-controls="challenge-info" data-i18n="challengeRulesBtn">Challenge rules</button></p>
+        <div class="challenge-info" id="challenge-info" hidden>
+          <p data-i18n="challengeRules1">By creating a challenge, you are responsible for it. It must stay legal where you and your players live, and safe and respectful for everyone.</p>
+          <p data-i18n="challengeRules2">No money, bets, stakes or anything with a cash value. Nothing dangerous, humiliating or that someone could be forced into — every player must be free to say no.</p>
+          <p><a href="/terms.html" data-i18n="challengeRulesTerms">Read the Terms and Conditions</a></p>
+        </div>
+      </div>
       <button class="btn btn-primary" id="btn-create" data-i18n="createRoom">Create room</button>
     </div>
 
@@ -348,6 +358,11 @@
 
     <div class="sponsor-banner" id="lobby-sponsor" hidden></div>
     <p class="room-settings" id="lobby-settings"></p>
+    <div class="challenge-card" id="lobby-challenge" hidden>
+      <span class="challenge-title" data-i18n="challengeTitle">Party challenge</span>
+      <p class="challenge-text" id="lobby-challenge-text"></p>
+      <span class="challenge-sub" data-i18n="challengeWho">Whoever finishes last takes it on.</span>
+    </div>
     <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
     <button class="btn btn-secondary invite-btn" id="btn-invite"><span data-icon="link"></span><span data-i18n="inviteFriends">Invite friends with a link</span></button>
 
@@ -444,6 +459,14 @@
     <div class="leaderboard" id="leaderboard">
       <h2 class="leaderboard-title" data-i18n="scores">Scores</h2>
       <ul class="leaderboard-list" id="leaderboard-list"></ul>
+      <button type="button" class="text-btn" id="btn-show-all-scores" hidden></button>
+    </div>
+
+    <div class="challenge-card is-final" id="final-challenge" hidden>
+      <span class="challenge-title" data-i18n="challengeTitle">Party challenge</span>
+      <p class="challenge-text" id="final-challenge-text"></p>
+      <div class="challenge-losers" id="final-challenge-losers"></div>
+      <p class="challenge-verdict" id="final-challenge-verdict"></p>
     </div>
 
     <div class="letter-picker" id="letter-picker" hidden>

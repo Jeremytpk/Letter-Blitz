@@ -114,6 +114,13 @@ Open the URL it prints (usually `http://localhost:8888`).
   network address. Admin tokens are signed with `ADMIN_SECRET` (a random
   Netlify environment variable); CSV exports neutralise spreadsheet
   formulas. Report problems via `/.well-known/security.txt`.
+- **Party challenge:** the room creator can add an optional challenge for
+  whoever finishes last ("The loser drinks 2 bottles of water"). It shows in
+  the lobby; after the last round the final screen shows the top 5 and who
+  the challenge falls on (everyone tied on the lowest score; nobody if all
+  players tie). A "Challenge rules" link explains it must stay legal and
+  never involve money; challenges mentioning money or bets are refused, and
+  the Terms (section 4c) cover it.
 - **Sponsors & prizes:** the admin dashboard's Sponsors section creates
   campaigns (logo, prize, dates, optional sponsored category, prize codes).
   When a campaign is live, the room creator chooses "Just for fun" or

@@ -1318,3 +1318,36 @@ textarea:focus { outline: none; border-color: var(--accent); }
 .modal-or::before, .modal-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 [hidden] { display: none !important; }
+
+/* ---------- party challenge ---------- */
+
+.field-hint { margin: 0; font-size: 13px; color: var(--text-dim); font-weight: 600; }
+.text-btn { background: none; border: none; padding: 0; font: inherit; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.leaderboard > .text-btn { align-self: center; font-size: 14px; padding: 4px; }
+.challenge-info { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.challenge-info p { margin: 0 0 6px; }
+.challenge-info p:last-child { margin: 0; }
+.challenge-info a { color: var(--accent); font-weight: 700; }
+
+.challenge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  background: var(--surface);
+  border: 2px dashed var(--accent-2);
+  border-radius: 20px;
+  padding: 14px 16px;
+}
+.challenge-card.is-final { border-style: solid; box-shadow: var(--shadow); }
+.challenge-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.challenge-text { margin: 0; font-family: 'Unbounded', sans-serif; font-weight: 700; font-size: 17px; overflow-wrap: anywhere; }
+.challenge-sub { font-size: 13px; color: var(--text-dim); font-weight: 600; }
+.challenge-losers { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.challenge-loser { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.challenge-loser .avatar { width: 56px; height: 56px; }
+.challenge-loser-name { font-weight: 800; }
+.challenge-loser.is-me .challenge-loser-name { color: var(--accent); }
+.challenge-loser-score { font-size: 12px; color: var(--text-dim); font-weight: 700; }
+.challenge-verdict { margin: 0; font-weight: 800; font-size: 16px; color: var(--bad); }

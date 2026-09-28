@@ -139,6 +139,19 @@ function cleanAvatar(avatar) {
   return /^[A-Za-z][A-Za-z0-9_-]{1,23}$/.test(String(avatar || '')) ? avatar : null;
 }
 
+// The room creator's optional party challenge for whoever finishes last
+// ("The loser drinks 2 bottles of water"). Nothing involving money or bets.
+const MAX_CHALLENGE = 100;
+const MONEY_RE = /[$€£¥₦₵₹]|\b(money|cash|bets?|betting|wager\w*|gambl\w*|pay|pays|paid|paying|dollars?|euros?|francs?|bucks?|cfa|fcfa|usd|eur|xaf|xof|cdf|argent|pari|parier|parie|paies?|payer|payes?|fric|thunes?|mises?|miser|m-?pesa)\b/i;
+
+function cleanChallenge(text) {
+  const challenge = cleanText(text, { max: MAX_CHALLENGE });
+  if (challenge && MONEY_RE.test(challenge.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) {
+    throw new GameError('challenge_money', 'A challenge can’t involve money or bets.');
+  }
+  return challenge;
+}
+
 function cleanName(name) {
   const n = cleanText(name, { max: 20 });
   if (!n) throw new GameError('name_required', 'Enter a name first.');
@@ -269,6 +282,7 @@ function publicState(room, playerId, now) {
     categoriesPerRound: room.categoriesPerRound,
     totalRounds: room.totalRounds || DEFAULT_ROUNDS,
     showPlayers: !!room.showPlayers,
+    challenge: room.challenge || '',
     hostId: effectiveHostId(room, now),
     players: players.map((p) => ({
       id: p.id,
@@ -450,6 +464,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       if (!(await underLimit(store, 'create', meta.ip, 30, 3600000, now()))) {
         throw new GameError('too_many', 'Too many rooms created. Try again later.');
       }
+      const challenge = cleanChallenge(settings.challenge);
       const id = playerId || randomId(12);
       const t = now();
       // A "real prizes" game uses the sponsor the creator picked, if it's live.
@@ -471,6 +486,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           duration: clampDuration(settings.duration),
           categoriesPerRound: clampCategoryCount(settings.categoriesPerRound),
           totalRounds: clampTotalRounds(settings.totalRounds),
+          challenge,
           players: { [id]: { id, name: n, avatar: cleanAvatar(avatar), totalScore: 0, joinedAt: t, lastSeen: t } },
           answers: {},
           reveal: null,
