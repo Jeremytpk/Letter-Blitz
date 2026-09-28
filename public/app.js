@@ -159,6 +159,10 @@
     barLetter: document.getElementById('bar-letter'),
 
     leaveModal: document.getElementById('leave-modal'),
+    challengeModal: document.getElementById('challenge-modal'),
+    challengeModalText: document.getElementById('challenge-modal-text'),
+    btnChallengeAccept: document.getElementById('btn-challenge-accept'),
+    btnChallengeDecline: document.getElementById('btn-challenge-decline'),
     leaveTitle: document.getElementById('leave-title'),
     leaveDesc: document.getElementById('leave-desc'),
     leaveActions: document.getElementById('leave-actions'),
@@ -495,10 +499,42 @@
     });
   }
 
+  // A room with a party challenge: the player reads it first, and only
+  // joins if they agree. Resolves true (agree) or false (decline).
+  let challengeAnswer = null;
+  function askChallenge(challenge) {
+    els.challengeModalText.textContent = `“${challenge}”`;
+    els.challengeModal.hidden = false;
+    els.btnChallengeAccept.focus();
+    return new Promise((resolve) => (challengeAnswer = resolve));
+  }
+  function answerChallenge(ok) {
+    if (els.challengeModal.hidden) return;
+    els.challengeModal.hidden = true;
+    const resolve = challengeAnswer;
+    challengeAnswer = null;
+    if (resolve) resolve(ok);
+  }
+  els.btnChallengeAccept.addEventListener('click', () => answerChallenge(true));
+  els.btnChallengeDecline.addEventListener('click', () => answerChallenge(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') answerChallenge(false);
+  });
+
   async function enterRoom(action, payload) {
     els.btnJoin.disabled = true;
     els.btnCreate.disabled = true;
     try {
+      if (action === 'join') {
+        const room = await api('peek', { code: payload.code });
+        if (room.open && room.challenge) {
+          if (!(await askChallenge(room.challenge))) {
+            showError(t('challengeDeclined', { code: payload.code }));
+            return;
+          }
+          payload = { ...payload, acceptedChallenge: room.challenge };
+        }
+      }
       await api(action, payload);
       // Drop ?room=… from the address bar once inside a room.
       if (invitedTo) history.replaceState(null, '', location.pathname);
@@ -2289,7 +2325,7 @@
       .catch((err) => {
         if (err.code === 'room_closed') showRoomClosed('closed', myRoomCode);
         else if (err.code === 'room_not_found') showRoomClosed('gone', myRoomCode);
-        else if (err.fatal) resetToLanding(t('roomEnded'));
+        else if (err.fatal || err.code === 'challenge_required' || err.code === 'game_started') resetToLanding(t('roomEnded'));
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }

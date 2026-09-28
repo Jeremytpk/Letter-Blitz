@@ -1,558 +1,1315 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Letter Blitz</title>
-<meta name="description" content="Same letter, same clock: fill every category before time runs out. Answers checked online, French or English. No sign-up." />
-<meta name="theme-color" content="#0e0f1a" />
-<link rel="icon" type="image/png" href="/favicon.png" />
-<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Letter Blitz</title>
+    <meta
+      name="description"
+      content="Same letter, same clock: fill every category before time runs out. Answers checked online, French or English. No sign-up."
+    />
+    <meta name="theme-color" content="#0e0f1a" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-<!-- Link previews (WhatsApp, Facebook, X, iMessage…) -->
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="Letter Blitz" />
-<meta property="og:title" content="Letter Blitz" />
-<meta property="og:description" content="Same letter, same clock: fill every category before time runs out. Answers checked online, French or English. No sign-up." />
-<meta property="og:url" content="https://letterblitz.world/" />
-<meta property="og:image" content="https://letterblitz.world/logo.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="655" />
-<meta property="og:image:alt" content="Letter Blitz logo" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:image" content="https://letterblitz.world/logo.jpg" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-
-<div class="app" id="app">
-
-  <!-- ===================== LANDING ===================== -->
-  <section class="view" id="view-landing">
-    <div class="landing-top"><div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div></div>
-    <header class="hero">
-      <h1 class="hero-logo"><img src="/logo.jpg" alt="Letter Blitz" width="1200" height="655" /></h1>
-      <p class="hero-tag" data-i18n="tagline">Everyone gets the same letter. Fill every category before the clock hits zero.</p>
-    </header>
-
-    <div class="invite-banner" id="invite-banner" hidden></div>
-
-    <div class="card">
-      <label class="field">
-        <span class="field-label" data-i18n="yourName">Your name</span>
-        <input id="name-input" type="text" maxlength="20" placeholder="e.g. Jamie" data-i18n-placeholder="namePlaceholder" autocomplete="off" />
-      </label>
-      <div class="field">
-        <span class="field-label" id="avatar-label" data-i18n="chooseAvatar">Choose your avatar</span>
-        <!-- Pages of 12 avatars; swipe sideways (or use the arrows) for more -->
-        <div class="avatar-pager" id="avatar-grid" role="radiogroup" aria-labelledby="avatar-label"></div>
-        <div class="avatar-nav">
-          <button type="button" class="avatar-arrow" id="avatar-prev" aria-label="Previous avatars"><span data-icon="arrow-left"></span></button>
-          <div class="avatar-dots" id="avatar-dots"></div>
-          <button type="button" class="avatar-arrow" id="avatar-next" aria-label="More avatars"><span data-icon="arrow-right"></span></button>
-        </div>
-        <p class="avatar-hint" id="avatar-hint" data-i18n="swipeForMore">Swipe for more avatars</p>
-      </div>
-    </div>
-
-
-    <div class="tabs" role="tablist">
-      <button class="tab-btn is-active" id="tab-join" role="tab" aria-selected="true" data-i18n="joinTab">Join a room</button>
-      <button class="tab-btn" id="tab-create" role="tab" aria-selected="false" data-i18n="createTab">Create a room</button>
-    </div>
-
-    <div class="card" id="panel-join">
-      <label class="field">
-        <span class="field-label" data-i18n="roomCode">Room code</span>
-        <input id="code-input" type="text" maxlength="4" placeholder="ABCD" autocomplete="off" class="code-input" />
-      </label>
-      <button class="btn btn-primary" id="btn-join" data-i18n="joinRoom">Join room</button>
-    </div>
-
-    <div class="card" id="panel-create" hidden>
-      <!-- Only shown when the admin has a sponsor campaign running -->
-      <div class="field" id="game-type-field" hidden>
-        <span class="field-label" id="game-type-label" data-i18n="gameType">Game type</span>
-        <div class="game-type" role="radiogroup" aria-labelledby="game-type-label">
-          <button type="button" role="radio" data-game-type="fun">
-            <span data-icon="players"></span>
-            <span class="gt-title" data-i18n="gameFun">Just for fun</span>
-            <span class="gt-sub" data-i18n="gameFunSub">Friends only, no prizes</span>
-          </button>
-          <button type="button" role="radio" data-game-type="prizes">
-            <span data-icon="trophy"></span>
-            <span class="gt-title" data-i18n="gamePrizes">Real prizes</span>
-            <span class="gt-sub" data-i18n="gamePrizesSub">Win rewards from a sponsor</span>
-          </button>
-        </div>
-        <div class="sponsor-pick" id="sponsor-pick" hidden>
-          <span class="field-label" id="sponsor-pick-label" data-i18n="pickSponsor">Choose a sponsor</span>
-          <div class="sponsor-options" id="sponsor-options" role="radiogroup" aria-labelledby="sponsor-pick-label"></div>
-        </div>
-      </div>
-      <div class="field">
-        <span class="field-label" id="rounds-label" data-i18n="numberOfRounds">Number of rounds</span>
-        <div class="round-choice" id="round-choice" role="radiogroup" aria-labelledby="rounds-label">
-          <button type="button" role="radio" data-rounds="1">1</button>
-          <button type="button" role="radio" data-rounds="3">3</button>
-          <button type="button" role="radio" data-rounds="5">5</button>
-          <button type="button" role="radio" data-rounds="7">7</button>
-          <button type="button" role="radio" data-rounds="11">11</button>
-        </div>
-      </div>
-      <label class="field">
-        <span class="field-label"><span data-i18n="roundLength">Round length:</span> <span id="duration-out">90</span><span data-i18n="seconds">s</span></span>
-        <input id="duration-input" type="range" min="20" max="180" step="10" value="90" />
-      </label>
-      <label class="field">
-        <span class="field-label"><span data-i18n="categoriesPerRound">Categories per round:</span> <span id="catcount-out">9</span></span>
-        <input id="catcount-input" type="range" min="4" max="12" step="1" value="9" />
-      </label>
-      <div class="field">
-        <label class="field-label" for="challenge-input" data-i18n="challengeLabel">Party challenge (optional)</label>
-        <input id="challenge-input" type="text" maxlength="100" autocomplete="off" data-i18n-placeholder="challengePlaceholder" placeholder="e.g. The loser drinks 2 bottles of water" />
-        <p class="field-hint"><span data-i18n="challengeHint">Whoever finishes last takes it on.</span> <button type="button" class="text-btn" id="btn-challenge-info" aria-expanded="false" aria-controls="challenge-info" data-i18n="challengeRulesBtn">Challenge rules</button></p>
-        <div class="challenge-info" id="challenge-info" hidden>
-          <p data-i18n="challengeRules1">By creating a challenge, you are responsible for it. It must stay legal where you and your players live, and safe and respectful for everyone.</p>
-          <p data-i18n="challengeRules2">No money, bets, stakes or anything with a cash value. Nothing dangerous, humiliating or that someone could be forced into — every player must be free to say no.</p>
-          <p><a href="/terms.html" data-i18n="challengeRulesTerms">Read the Terms and Conditions</a></p>
-        </div>
-      </div>
-      <button class="btn btn-primary" id="btn-create" data-i18n="createRoom">Create room</button>
-    </div>
-
-    <p class="error" id="landing-error" hidden></p>
-
-    <nav class="site-links" aria-label="Site">
-      <a href="/about.html" data-i18n="about">About</a><span aria-hidden="true">·</span>
-      <a href="/privacy.html" data-i18n="privacy">Privacy</a><span aria-hidden="true">·</span>
-      <a href="/terms.html" data-i18n="terms">Terms</a><span aria-hidden="true">·</span>
-      <a href="/contact.html" data-i18n="contact">Contact</a>
-    </nav>
-    <footer class="credit"><span data-i18n="poweredBy">Powered by</span> <strong>Jerttech</strong></footer>
-  </section>
-
-  <!-- ===================== ADMIN DASHBOARD ===================== -->
-  <section class="view" id="view-admin" hidden>
-    <header class="topbar">
-      <h1 class="admin-title" data-i18n="dashboard">Dashboard</h1>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-        <button class="icon-btn" id="btn-admin-refresh" data-i18n="refresh">Refresh</button>
-        <button class="icon-btn" id="btn-admin-logout" data-i18n="signOut">Sign out</button>
-      </div>
-    </header>
-    <p class="admin-updated" id="admin-updated"></p>
-
-    <div class="stat-grid" id="admin-tiles"></div>
-
-    <section class="admin-section">
-      <h2 class="admin-h2"><span data-i18n="liveRooms">Rooms online now</span> <span class="admin-count" id="admin-rooms-count">0</span></h2>
-      <div class="admin-rooms" id="admin-rooms"></div>
-    </section>
-
-    <section class="admin-section">
-      <div class="admin-h2-row">
-        <h2 class="admin-h2"><span data-icon="trophy"></span><span data-i18n="sponsorsH">Sponsors</span> <span class="admin-count" id="admin-sponsors-count">0</span></h2>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-new-campaign" data-i18n="newCampaign">New campaign</button>
-      </div>
-      <p class="admin-note" data-i18n="sponsorsHint">While a campaign is live, room creators can choose it for a “Real prizes” game; the winner of an eligible game gets a prize code.</p>
-      <div class="admin-feed" id="admin-sponsors"></div>
-    </section>
-
-    <section class="admin-section">
-      <h2 class="admin-h2"><button type="button" class="admin-h2-link" data-open-list="feedback"><span data-icon="star"></span><span data-i18n="feedbackH">Feedback</span> <span class="admin-count" id="admin-feedback-count">0</span><span data-icon="arrow-right"></span></button></h2>
-      <p class="admin-note" id="admin-feedback-summary"></p>
-      <div class="admin-feed" id="admin-feedback"></div>
-      <button type="button" class="btn btn-secondary btn-sm view-all" id="btn-view-feedback" data-open-list="feedback"></button>
-    </section>
-
-    <section class="admin-section">
-      <h2 class="admin-h2"><button type="button" class="admin-h2-link" data-open-list="messages"><span data-icon="mail"></span><span data-i18n="messagesH">Messages</span> <span class="admin-count" id="admin-messages-count">0</span><span data-icon="arrow-right"></span></button></h2>
-      <div class="admin-feed" id="admin-messages"></div>
-      <button type="button" class="btn btn-secondary btn-sm view-all" id="btn-view-messages" data-open-list="messages"></button>
-    </section>
-
-    <section class="admin-section admin-data">
-      <h2 class="admin-h2" data-i18n="dataExports">Data &amp; exports</h2>
-      <p class="admin-note" id="admin-storage"></p>
-      <div class="admin-card">
-        <span class="stat-label" data-i18n="downloadCsv">Download CSV</span>
-        <div class="csv-buttons">
-          <button class="btn btn-secondary btn-sm" data-csv="totals" data-i18n="csvTotals">Totals</button>
-          <button class="btn btn-secondary btn-sm" data-csv="daily" data-i18n="csvDaily">Daily stats</button>
-          <button class="btn btn-secondary btn-sm" data-csv="rooms" data-i18n="csvRooms">Rooms</button>
-          <button class="btn btn-secondary btn-sm" data-csv="players" data-i18n="csvPlayers">Players</button>
-          <button class="btn btn-secondary btn-sm" data-csv="feedback" data-i18n="csvFeedback">Feedback</button>
-          <button class="btn btn-secondary btn-sm" data-csv="messages" data-i18n="csvMessages">Messages</button>
-          <button class="btn btn-secondary btn-sm" data-csv="claims" data-i18n="csvClaims">Prize claims</button>
-        </div>
-        <p class="admin-note" data-i18n="csvHint">Rooms and Players include live rooms and the archive.</p>
-      </div>
-      <form class="admin-card" id="admin-delete-form">
-        <span class="stat-label" data-i18n="freeSpace">Free up space</span>
-        <p class="admin-note" data-i18n="freeSpaceHint">Nothing is deleted automatically. Download the CSV first, then delete here. Totals are always kept.</p>
-        <div class="delete-row">
-          <label class="field">
-            <span class="field-label" data-i18n="whatToDelete">What</span>
-            <select id="admin-delete-what">
-              <option value="archive" data-i18n="deleteArchive">Archived rooms</option>
-              <option value="days" data-i18n="deleteDays">Daily history</option>
-              <option value="feedback" data-i18n="deleteFeedback">Feedback</option>
-              <option value="messages" data-i18n="deleteMessages">Messages</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="field-label" data-i18n="olderThan">Older than (optional)</span>
-            <input type="date" id="admin-delete-before" />
-          </label>
-          <button type="submit" class="btn btn-danger-outline btn-sm" data-i18n="deleteBtn">Delete</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="admin-section">
-      <h2 class="admin-h2" data-i18n="last14Days">Last 14 days</h2>
-      <div class="admin-table-wrap">
-        <table class="admin-table" id="admin-days"></table>
-      </div>
-    </section>
-  </section>
-
-  <!-- ===================== ADMIN: ALL FEEDBACK / MESSAGES ===================== -->
-  <section class="view" id="view-admin-list" hidden>
-    <header class="topbar">
-      <button type="button" class="page-back" id="btn-list-back"><span data-icon="arrow-left"></span><span data-i18n="dashboard">Dashboard</span></button>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-      </div>
-    </header>
-    <div class="list-head">
-      <h1 class="admin-title" id="list-title"></h1>
-      <span class="admin-count" id="list-count">0</span>
-    </div>
-    <p class="admin-note" id="list-summary"></p>
-    <div class="list-tools">
-      <div class="star-filter" id="star-filter" role="group" hidden>
-        <button type="button" data-stars="0" data-i18n="filterAll">All</button>
-        <button type="button" data-stars="5">5<span data-icon="star"></span></button>
-        <button type="button" data-stars="4">4<span data-icon="star"></span></button>
-        <button type="button" data-stars="3">3<span data-icon="star"></span></button>
-        <button type="button" data-stars="2">2<span data-icon="star"></span></button>
-        <button type="button" data-stars="1">1<span data-icon="star"></span></button>
-      </div>
-      <button type="button" class="btn btn-primary btn-sm" id="btn-list-csv" data-i18n="downloadCsv">Download CSV</button>
-    </div>
-    <div class="admin-list" id="list-items"></div>
-  </section>
-
-  <!-- ===================== ADMIN: SPONSOR CAMPAIGN EDITOR ===================== -->
-  <section class="view" id="view-admin-sponsor" hidden>
-    <header class="topbar">
-      <button type="button" class="page-back" id="btn-sponsor-back"><span data-icon="arrow-left"></span><span data-i18n="dashboard">Dashboard</span></button>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-      </div>
-    </header>
-    <h1 class="admin-title" id="sponsor-form-title">New campaign</h1>
-
-    <form class="sponsor-form" id="sponsor-form" novalidate>
-      <fieldset class="admin-card">
-        <legend class="stat-label" data-i18n="sfSponsor">Sponsor</legend>
-        <label class="field"><span class="field-label" data-i18n="sfName">Sponsor name</span><input id="sf-name" type="text" maxlength="60" required /></label>
-        <label class="field"><span class="field-label" data-i18n="sfUrl">Website (https://…)</span><input id="sf-url" type="url" maxlength="300" placeholder="https://" /></label>
-        <div class="sf-row">
-          <label class="field"><span class="field-label" data-i18n="sfColor">Brand color</span><input id="sf-color" type="color" value="#ff3e6c" /></label>
-          <div class="field">
-            <span class="field-label" data-i18n="sfLogo">Logo</span>
-            <div class="sf-logo">
-              <img id="sf-logo-preview" alt="" hidden />
-              <label class="btn btn-secondary btn-sm"><span data-i18n="sfLogoPick">Choose image</span><input id="sf-logo" type="file" accept="image/png,image/jpeg,image/webp" hidden /></label>
-              <button type="button" class="icon-btn" id="sf-logo-remove" data-i18n="deleteItem" hidden>Delete</button>
-            </div>
+    <!-- Link previews (WhatsApp, Facebook, X, iMessage…) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Letter Blitz" />
+    <meta property="og:title" content="Letter Blitz" />
+    <meta
+      property="og:description"
+      content="Same letter, same clock: fill every category before time runs out. Answers checked online, French or English. No sign-up."
+    />
+    <meta property="og:url" content="https://letterblitz.world/" />
+    <meta property="og:image" content="https://letterblitz.world/logo.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="655" />
+    <meta property="og:image:alt" content="Letter Blitz logo" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://letterblitz.world/logo.jpg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <!-- ===================== LANDING ===================== -->
+      <section class="view" id="view-landing">
+        <div class="landing-top">
+          <div class="lang-switch" role="group" aria-label="Language / Langue">
+            <button type="button" data-lang="en">EN</button
+            ><button type="button" data-lang="fr">FR</button>
           </div>
         </div>
-        <div class="sf-row">
-          <label class="field"><span class="field-label" data-i18n="sfTaglineEn">Tagline (English)</span><input id="sf-tagline-en" type="text" maxlength="120" /></label>
-          <label class="field"><span class="field-label" data-i18n="sfTaglineFr">Tagline (French)</span><input id="sf-tagline-fr" type="text" maxlength="120" /></label>
-        </div>
-      </fieldset>
+        <header class="hero">
+          <h1 class="hero-logo">
+            <img src="/logo.jpg" alt="Letter Blitz" width="1200" height="655" />
+          </h1>
+          <p class="hero-tag" data-i18n="tagline">
+            Everyone gets the same letter. Fill every category before the clock
+            hits zero.
+          </p>
+        </header>
 
-      <fieldset class="admin-card">
-        <legend class="stat-label" data-i18n="sfPrize">Prize</legend>
-        <div class="sf-row">
-          <label class="field"><span class="field-label" data-i18n="sfPrizeEn">Prize (English)</span><input id="sf-prize-en" type="text" maxlength="120" placeholder="20% off any juice" /></label>
-          <label class="field"><span class="field-label" data-i18n="sfPrizeFr">Prize (French)</span><input id="sf-prize-fr" type="text" maxlength="120" placeholder="20 % sur tous les jus" /></label>
-        </div>
-        <label class="field">
-          <span class="field-label" data-i18n="sfCodes">Add prize codes (one per line)</span>
-          <textarea id="sf-codes" rows="4" placeholder="JUICE-001&#10;JUICE-002"></textarea>
-        </label>
-        <p class="admin-note" id="sf-codes-info"></p>
-        <div class="sf-row">
-          <label class="field"><span class="field-label" data-i18n="sfMinPlayers">Minimum players for a prize</span><input id="sf-min-players" type="number" min="2" max="12" value="3" /></label>
-          <label class="field"><span class="field-label" data-i18n="sfMinRounds">Minimum rounds for a prize</span>
-            <select id="sf-min-rounds"><option>1</option><option selected>3</option><option>5</option><option>7</option><option>11</option></select>
+        <div class="invite-banner" id="invite-banner" hidden></div>
+
+        <div class="card">
+          <label class="field">
+            <span class="field-label" data-i18n="yourName">Your name</span>
+            <input
+              id="name-input"
+              type="text"
+              maxlength="20"
+              placeholder="e.g. Jamie"
+              data-i18n-placeholder="namePlaceholder"
+              autocomplete="off"
+            />
           </label>
+          <div class="field">
+            <span class="field-label" id="avatar-label" data-i18n="chooseAvatar"
+              >Choose your avatar</span
+            >
+            <!-- Pages of 12 avatars; swipe sideways (or use the arrows) for more -->
+            <div
+              class="avatar-pager"
+              id="avatar-grid"
+              role="radiogroup"
+              aria-labelledby="avatar-label"
+            ></div>
+            <div class="avatar-nav">
+              <button
+                type="button"
+                class="avatar-arrow"
+                id="avatar-prev"
+                aria-label="Previous avatars"
+              >
+                <span data-icon="arrow-left"></span>
+              </button>
+              <div class="avatar-dots" id="avatar-dots"></div>
+              <button
+                type="button"
+                class="avatar-arrow"
+                id="avatar-next"
+                aria-label="More avatars"
+              >
+                <span data-icon="arrow-right"></span>
+              </button>
+            </div>
+            <p class="avatar-hint" id="avatar-hint" data-i18n="swipeForMore">
+              Swipe for more avatars
+            </p>
+          </div>
         </div>
-        <label class="check-row"><input id="sf-email" type="checkbox" /><span data-i18n="sfCollectEmail">Ask winners for their email (so the sponsor can deliver the prize)</span></label>
-      </fieldset>
 
-      <fieldset class="admin-card">
-        <legend class="stat-label" data-i18n="sfCategory">Sponsored categories (optional)</legend>
-        <p class="admin-note" data-i18n="sfCategoriesHint">Up to 3. One is played each round, in turn: round 1 uses the first, round 2 the second, round 3 the third, then again from the first.</p>
-        <div id="sf-cats"></div>
-        <p class="admin-note" data-i18n="sfCategoryNote">Every answer in these categories is saved without player names; download them from the campaign card.</p>
-      </fieldset>
-
-      <fieldset class="admin-card">
-        <legend class="stat-label" data-i18n="sfWhen">When</legend>
-        <div class="sf-row">
-          <label class="field"><span class="field-label" data-i18n="sfStarts">Starts</span><input id="sf-starts" type="datetime-local" required /></label>
-          <label class="field"><span class="field-label" data-i18n="sfEnds">Ends</span><input id="sf-ends" type="datetime-local" required /></label>
-        </div>
-        <label class="switch"><input type="checkbox" id="sf-active" /><span class="switch-track" aria-hidden="true"></span><span data-i18n="sfActive">Campaign switched on</span></label>
-      </fieldset>
-
-      <fieldset class="admin-card">
-        <legend class="stat-label" data-i18n="sfRules">Extra rules (optional)</legend>
-        <div class="sf-row">
-          <label class="field"><span class="field-label">English</span><textarea id="sf-rules-en" rows="3" maxlength="2000"></textarea></label>
-          <label class="field"><span class="field-label">Français</span><textarea id="sf-rules-fr" rows="3" maxlength="2000"></textarea></label>
-        </div>
-      </fieldset>
-
-      <p class="error" id="sf-error" hidden></p>
-      <div class="sf-actions">
-        <button type="button" class="btn btn-secondary" id="sf-cancel" data-i18n="cancel">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="sf-save" data-i18n="save">Save campaign</button>
-      </div>
-    </form>
-  </section>
-
-  <!-- ===================== ROOM CLOSED ===================== -->
-  <section class="view" id="view-closed" hidden>
-    <div class="landing-top"><div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div></div>
-    <div class="closed-card">
-      <div class="closed-art" data-icon="closed"></div>
-      <h1 class="closed-title" id="closed-title">This room is closed</h1>
-      <p class="closed-text" id="closed-text"></p>
-      <button class="btn btn-primary" id="btn-closed-create" data-i18n="createNewRoom">Create a new room</button>
-      <button class="btn btn-secondary" id="btn-closed-join" data-i18n="joinAnotherRoom">Join another room</button>
-    </div>
-    <footer class="credit"><span data-i18n="poweredBy">Powered by</span> <strong>Jerttech</strong></footer>
-  </section>
-
-  <!-- ===================== LOBBY ===================== -->
-  <section class="view" id="view-lobby" hidden>
-    <header class="topbar">
-      <div class="room-code" id="lobby-code">----</div>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-        <button class="icon-btn" id="btn-leave-lobby" title="Leave room" data-i18n="leave" data-i18n-title="leaveRoom">Leave</button>
-      </div>
-    </header>
-
-    <div class="sponsor-banner" id="lobby-sponsor" hidden></div>
-    <p class="room-settings" id="lobby-settings"></p>
-    <div class="challenge-card" id="lobby-challenge" hidden>
-      <span class="challenge-title" data-i18n="challengeTitle">Party challenge</span>
-      <p class="challenge-text" id="lobby-challenge-text"></p>
-      <span class="challenge-sub" data-i18n="challengeWho">Whoever finishes last takes it on.</span>
-    </div>
-    <p class="lobby-hint" data-i18n="shareCode">Share this code &mdash; everyone joins from their own phone.</p>
-    <button class="btn btn-secondary invite-btn" id="btn-invite"><span data-icon="link"></span><span data-i18n="inviteFriends">Invite friends with a link</span></button>
-
-    <ul class="player-list" id="lobby-players"></ul>
-
-    <div class="lobby-actions">
-      <button class="btn btn-primary" id="btn-start" hidden>Start game</button>
-      <p class="waiting-note" id="lobby-wait-note" data-i18n="waitingForHost">Waiting for the host to start&hellip;</p>
-    </div>
-  </section>
-
-  <!-- ===================== PLAYING ===================== -->
-  <section class="view" id="view-playing" hidden>
-    <!-- Stays pinned to the top while scrolling through the categories -->
-    <div class="play-bar" id="play-bar">
-      <header class="topbar">
-        <div class="play-bar-left">
-          <div class="room-code small" id="playing-code">----</div>
-          <div class="bar-letter" id="bar-letter" aria-hidden="true"></div>
-        </div>
-        <div class="topbar-actions">
-          <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-          <div class="timer" id="timer-text" role="timer" aria-live="off">1:00</div>
-          <button type="button" class="players-pill" id="players-pill" aria-expanded="false" aria-controls="players-panel" hidden>
-            <span data-icon="players"></span><span id="players-count">0</span>
+        <div class="tabs" role="tablist">
+          <button
+            class="tab-btn is-active"
+            id="tab-join"
+            role="tab"
+            aria-selected="true"
+            data-i18n="joinTab"
+          >
+            Join a room
+          </button>
+          <button
+            class="tab-btn"
+            id="tab-create"
+            role="tab"
+            aria-selected="false"
+            data-i18n="createTab"
+          >
+            Create a room
           </button>
         </div>
-      </header>
-      <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
 
-      <!-- Player list: the room head always has it and decides if everyone does -->
-      <div class="players-panel" id="players-panel" hidden>
-        <div class="players-panel-head">
-          <span class="players-panel-title" id="players-panel-title"></span>
-          <label class="switch" id="show-players-row" hidden>
-            <input type="checkbox" id="show-players-switch" />
-            <span class="switch-track" aria-hidden="true"></span>
-            <span data-i18n="visibleToAll">Visible to everyone</span>
+        <div class="card" id="panel-join">
+          <label class="field">
+            <span class="field-label" data-i18n="roomCode">Room code</span>
+            <input
+              id="code-input"
+              type="text"
+              maxlength="4"
+              placeholder="ABCD"
+              autocomplete="off"
+              class="code-input"
+            />
           </label>
+          <button class="btn btn-primary" id="btn-join" data-i18n="joinRoom">
+            Join room
+          </button>
         </div>
-        <p class="players-panel-hint" id="players-panel-hint" hidden></p>
-        <ul class="players-panel-list" id="players-panel-list"></ul>
+
+        <div class="card" id="panel-create" hidden>
+          <!-- Only shown when the admin has a sponsor campaign running -->
+          <div class="field" id="game-type-field" hidden>
+            <span class="field-label" id="game-type-label" data-i18n="gameType"
+              >Game type</span
+            >
+            <div
+              class="game-type"
+              role="radiogroup"
+              aria-labelledby="game-type-label"
+            >
+              <button type="button" role="radio" data-game-type="fun">
+                <span data-icon="players"></span>
+                <span class="gt-title" data-i18n="gameFun">Just for fun</span>
+                <span class="gt-sub" data-i18n="gameFunSub"
+                  >Friends only, no prizes</span
+                >
+              </button>
+              <button type="button" role="radio" data-game-type="prizes">
+                <span data-icon="trophy"></span>
+                <span class="gt-title" data-i18n="gamePrizes">Real prizes</span>
+                <span class="gt-sub" data-i18n="gamePrizesSub"
+                  >Win rewards from a sponsor</span
+                >
+              </button>
+            </div>
+            <div class="sponsor-pick" id="sponsor-pick" hidden>
+              <span
+                class="field-label"
+                id="sponsor-pick-label"
+                data-i18n="pickSponsor"
+                >Choose a sponsor</span
+              >
+              <div
+                class="sponsor-options"
+                id="sponsor-options"
+                role="radiogroup"
+                aria-labelledby="sponsor-pick-label"
+              ></div>
+            </div>
+          </div>
+          <div class="field">
+            <span
+              class="field-label"
+              id="rounds-label"
+              data-i18n="numberOfRounds"
+              >Number of rounds</span
+            >
+            <div
+              class="round-choice"
+              id="round-choice"
+              role="radiogroup"
+              aria-labelledby="rounds-label"
+            >
+              <button type="button" role="radio" data-rounds="1">1</button>
+              <button type="button" role="radio" data-rounds="3">3</button>
+              <button type="button" role="radio" data-rounds="5">5</button>
+              <button type="button" role="radio" data-rounds="7">7</button>
+              <button type="button" role="radio" data-rounds="11">11</button>
+            </div>
+          </div>
+          <label class="field">
+            <span class="field-label"
+              ><span data-i18n="roundLength">Round length:</span>
+              <span id="duration-out">90</span
+              ><span data-i18n="seconds">s</span></span
+            >
+            <input
+              id="duration-input"
+              type="range"
+              min="20"
+              max="180"
+              step="10"
+              value="90"
+            />
+          </label>
+          <label class="field">
+            <span class="field-label"
+              ><span data-i18n="categoriesPerRound">Categories per round:</span>
+              <span id="catcount-out">9</span></span
+            >
+            <input
+              id="catcount-input"
+              type="range"
+              min="4"
+              max="12"
+              step="1"
+              value="9"
+            />
+          </label>
+          <div class="field">
+            <label
+              class="field-label"
+              for="challenge-input"
+              data-i18n="challengeLabel"
+              >Party challenge (optional)</label
+            >
+            <input
+              id="challenge-input"
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+              data-i18n-placeholder="challengePlaceholder"
+              placeholder="e.g. The loser drinks 2 bottles of water"
+            />
+            <p class="field-hint">
+              <span data-i18n="challengeHint"
+                >Whoever finishes last takes it on.</span
+              >
+              <button
+                type="button"
+                class="text-btn"
+                id="btn-challenge-info"
+                aria-expanded="false"
+                aria-controls="challenge-info"
+                data-i18n="challengeRulesBtn"
+              >
+                Challenge rules
+              </button>
+            </p>
+            <div class="challenge-info" id="challenge-info" hidden>
+              <p data-i18n="challengeRules1">
+                By creating a challenge, you are responsible for it. It must
+                stay legal where you and your players live, and safe and
+                respectful for everyone.
+              </p>
+              <p data-i18n="challengeRules2">
+                No money, bets, stakes or anything with a cash value. Nothing
+                dangerous, humiliating or that someone could be forced into —
+                every player must be free to say no.
+              </p>
+              <p>
+                <a href="/terms.html" data-i18n="challengeRulesTerms"
+                  >Read the Terms and Conditions</a
+                >
+              </p>
+            </div>
+          </div>
+          <button
+            class="btn btn-primary"
+            id="btn-create"
+            data-i18n="createRoom"
+          >
+            Create room
+          </button>
+        </div>
+
+        <p class="error" id="landing-error" hidden></p>
+
+        <nav class="site-links" aria-label="Site">
+          <a href="/about.html" data-i18n="about">About</a
+          ><span aria-hidden="true">·</span>
+          <a href="/privacy.html" data-i18n="privacy">Privacy</a
+          ><span aria-hidden="true">·</span>
+          <a href="/terms.html" data-i18n="terms">Terms</a
+          ><span aria-hidden="true">·</span>
+          <a href="/contact.html" data-i18n="contact">Contact</a>
+        </nav>
+        <footer class="credit">
+          <span data-i18n="poweredBy">Powered by</span>
+          <strong>Jerttech</strong>
+        </footer>
+      </section>
+
+      <!-- ===================== ADMIN DASHBOARD ===================== -->
+      <section class="view" id="view-admin" hidden>
+        <header class="topbar">
+          <h1 class="admin-title" data-i18n="dashboard">Dashboard</h1>
+          <div class="topbar-actions">
+            <div
+              class="lang-switch"
+              role="group"
+              aria-label="Language / Langue"
+            >
+              <button type="button" data-lang="en">EN</button
+              ><button type="button" data-lang="fr">FR</button>
+            </div>
+            <button class="icon-btn" id="btn-admin-refresh" data-i18n="refresh">
+              Refresh
+            </button>
+            <button class="icon-btn" id="btn-admin-logout" data-i18n="signOut">
+              Sign out
+            </button>
+          </div>
+        </header>
+        <p class="admin-updated" id="admin-updated"></p>
+
+        <div class="stat-grid" id="admin-tiles"></div>
+
+        <section class="admin-section">
+          <h2 class="admin-h2">
+            <span data-i18n="liveRooms">Rooms online now</span>
+            <span class="admin-count" id="admin-rooms-count">0</span>
+          </h2>
+          <div class="admin-rooms" id="admin-rooms"></div>
+        </section>
+
+        <section class="admin-section">
+          <div class="admin-h2-row">
+            <h2 class="admin-h2">
+              <span data-icon="trophy"></span
+              ><span data-i18n="sponsorsH">Sponsors</span>
+              <span class="admin-count" id="admin-sponsors-count">0</span>
+            </h2>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              id="btn-new-campaign"
+              data-i18n="newCampaign"
+            >
+              New campaign
+            </button>
+          </div>
+          <p class="admin-note" data-i18n="sponsorsHint">
+            While a campaign is live, room creators can choose it for a “Real
+            prizes” game; the winner of an eligible game gets a prize code.
+          </p>
+          <div class="admin-feed" id="admin-sponsors"></div>
+        </section>
+
+        <section class="admin-section">
+          <h2 class="admin-h2">
+            <button
+              type="button"
+              class="admin-h2-link"
+              data-open-list="feedback"
+            >
+              <span data-icon="star"></span
+              ><span data-i18n="feedbackH">Feedback</span>
+              <span class="admin-count" id="admin-feedback-count">0</span
+              ><span data-icon="arrow-right"></span>
+            </button>
+          </h2>
+          <p class="admin-note" id="admin-feedback-summary"></p>
+          <div class="admin-feed" id="admin-feedback"></div>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm view-all"
+            id="btn-view-feedback"
+            data-open-list="feedback"
+          ></button>
+        </section>
+
+        <section class="admin-section">
+          <h2 class="admin-h2">
+            <button
+              type="button"
+              class="admin-h2-link"
+              data-open-list="messages"
+            >
+              <span data-icon="mail"></span
+              ><span data-i18n="messagesH">Messages</span>
+              <span class="admin-count" id="admin-messages-count">0</span
+              ><span data-icon="arrow-right"></span>
+            </button>
+          </h2>
+          <div class="admin-feed" id="admin-messages"></div>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm view-all"
+            id="btn-view-messages"
+            data-open-list="messages"
+          ></button>
+        </section>
+
+        <section class="admin-section admin-data">
+          <h2 class="admin-h2" data-i18n="dataExports">Data &amp; exports</h2>
+          <p class="admin-note" id="admin-storage"></p>
+          <div class="admin-card">
+            <span class="stat-label" data-i18n="downloadCsv">Download CSV</span>
+            <div class="csv-buttons">
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="totals"
+                data-i18n="csvTotals"
+              >
+                Totals
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="daily"
+                data-i18n="csvDaily"
+              >
+                Daily stats
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="rooms"
+                data-i18n="csvRooms"
+              >
+                Rooms
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="players"
+                data-i18n="csvPlayers"
+              >
+                Players
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="feedback"
+                data-i18n="csvFeedback"
+              >
+                Feedback
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="messages"
+                data-i18n="csvMessages"
+              >
+                Messages
+              </button>
+              <button
+                class="btn btn-secondary btn-sm"
+                data-csv="claims"
+                data-i18n="csvClaims"
+              >
+                Prize claims
+              </button>
+            </div>
+            <p class="admin-note" data-i18n="csvHint">
+              Rooms and Players include live rooms and the archive.
+            </p>
+          </div>
+          <form class="admin-card" id="admin-delete-form">
+            <span class="stat-label" data-i18n="freeSpace">Free up space</span>
+            <p class="admin-note" data-i18n="freeSpaceHint">
+              Nothing is deleted automatically. Download the CSV first, then
+              delete here. Totals are always kept.
+            </p>
+            <div class="delete-row">
+              <label class="field">
+                <span class="field-label" data-i18n="whatToDelete">What</span>
+                <select id="admin-delete-what">
+                  <option value="archive" data-i18n="deleteArchive">
+                    Archived rooms
+                  </option>
+                  <option value="days" data-i18n="deleteDays">
+                    Daily history
+                  </option>
+                  <option value="feedback" data-i18n="deleteFeedback">
+                    Feedback
+                  </option>
+                  <option value="messages" data-i18n="deleteMessages">
+                    Messages
+                  </option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label" data-i18n="olderThan"
+                  >Older than (optional)</span
+                >
+                <input type="date" id="admin-delete-before" />
+              </label>
+              <button
+                type="submit"
+                class="btn btn-danger-outline btn-sm"
+                data-i18n="deleteBtn"
+              >
+                Delete
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="admin-section">
+          <h2 class="admin-h2" data-i18n="last14Days">Last 14 days</h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table" id="admin-days"></table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ===================== ADMIN: ALL FEEDBACK / MESSAGES ===================== -->
+      <section class="view" id="view-admin-list" hidden>
+        <header class="topbar">
+          <button type="button" class="page-back" id="btn-list-back">
+            <span data-icon="arrow-left"></span
+            ><span data-i18n="dashboard">Dashboard</span>
+          </button>
+          <div class="topbar-actions">
+            <div
+              class="lang-switch"
+              role="group"
+              aria-label="Language / Langue"
+            >
+              <button type="button" data-lang="en">EN</button
+              ><button type="button" data-lang="fr">FR</button>
+            </div>
+          </div>
+        </header>
+        <div class="list-head">
+          <h1 class="admin-title" id="list-title"></h1>
+          <span class="admin-count" id="list-count">0</span>
+        </div>
+        <p class="admin-note" id="list-summary"></p>
+        <div class="list-tools">
+          <div class="star-filter" id="star-filter" role="group" hidden>
+            <button type="button" data-stars="0" data-i18n="filterAll">
+              All
+            </button>
+            <button type="button" data-stars="5">
+              5<span data-icon="star"></span>
+            </button>
+            <button type="button" data-stars="4">
+              4<span data-icon="star"></span>
+            </button>
+            <button type="button" data-stars="3">
+              3<span data-icon="star"></span>
+            </button>
+            <button type="button" data-stars="2">
+              2<span data-icon="star"></span>
+            </button>
+            <button type="button" data-stars="1">
+              1<span data-icon="star"></span>
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            id="btn-list-csv"
+            data-i18n="downloadCsv"
+          >
+            Download CSV
+          </button>
+        </div>
+        <div class="admin-list" id="list-items"></div>
+      </section>
+
+      <!-- ===================== ADMIN: SPONSOR CAMPAIGN EDITOR ===================== -->
+      <section class="view" id="view-admin-sponsor" hidden>
+        <header class="topbar">
+          <button type="button" class="page-back" id="btn-sponsor-back">
+            <span data-icon="arrow-left"></span
+            ><span data-i18n="dashboard">Dashboard</span>
+          </button>
+          <div class="topbar-actions">
+            <div
+              class="lang-switch"
+              role="group"
+              aria-label="Language / Langue"
+            >
+              <button type="button" data-lang="en">EN</button
+              ><button type="button" data-lang="fr">FR</button>
+            </div>
+          </div>
+        </header>
+        <h1 class="admin-title" id="sponsor-form-title">New campaign</h1>
+
+        <form class="sponsor-form" id="sponsor-form" novalidate>
+          <fieldset class="admin-card">
+            <legend class="stat-label" data-i18n="sfSponsor">Sponsor</legend>
+            <label class="field"
+              ><span class="field-label" data-i18n="sfName">Sponsor name</span
+              ><input id="sf-name" type="text" maxlength="60" required
+            /></label>
+            <label class="field"
+              ><span class="field-label" data-i18n="sfUrl"
+                >Website (https://…)</span
+              ><input
+                id="sf-url"
+                type="url"
+                maxlength="300"
+                placeholder="https://"
+            /></label>
+            <div class="sf-row">
+              <label class="field"
+                ><span class="field-label" data-i18n="sfColor">Brand color</span
+                ><input id="sf-color" type="color" value="#ff3e6c"
+              /></label>
+              <div class="field">
+                <span class="field-label" data-i18n="sfLogo">Logo</span>
+                <div class="sf-logo">
+                  <img id="sf-logo-preview" alt="" hidden />
+                  <label class="btn btn-secondary btn-sm"
+                    ><span data-i18n="sfLogoPick">Choose image</span
+                    ><input
+                      id="sf-logo"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      hidden
+                  /></label>
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    id="sf-logo-remove"
+                    data-i18n="deleteItem"
+                    hidden
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="sf-row">
+              <label class="field"
+                ><span class="field-label" data-i18n="sfTaglineEn"
+                  >Tagline (English)</span
+                ><input id="sf-tagline-en" type="text" maxlength="120"
+              /></label>
+              <label class="field"
+                ><span class="field-label" data-i18n="sfTaglineFr"
+                  >Tagline (French)</span
+                ><input id="sf-tagline-fr" type="text" maxlength="120"
+              /></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="admin-card">
+            <legend class="stat-label" data-i18n="sfPrize">Prize</legend>
+            <div class="sf-row">
+              <label class="field"
+                ><span class="field-label" data-i18n="sfPrizeEn"
+                  >Prize (English)</span
+                ><input
+                  id="sf-prize-en"
+                  type="text"
+                  maxlength="120"
+                  placeholder="20% off any juice"
+              /></label>
+              <label class="field"
+                ><span class="field-label" data-i18n="sfPrizeFr"
+                  >Prize (French)</span
+                ><input
+                  id="sf-prize-fr"
+                  type="text"
+                  maxlength="120"
+                  placeholder="20 % sur tous les jus"
+              /></label>
+            </div>
+            <label class="field">
+              <span class="field-label" data-i18n="sfCodes"
+                >Add prize codes (one per line)</span
+              >
+              <textarea
+                id="sf-codes"
+                rows="4"
+                placeholder="JUICE-001&#10;JUICE-002"
+              ></textarea>
+            </label>
+            <p class="admin-note" id="sf-codes-info"></p>
+            <div class="sf-row">
+              <label class="field"
+                ><span class="field-label" data-i18n="sfMinPlayers"
+                  >Minimum players for a prize</span
+                ><input
+                  id="sf-min-players"
+                  type="number"
+                  min="2"
+                  max="12"
+                  value="3"
+              /></label>
+              <label class="field"
+                ><span class="field-label" data-i18n="sfMinRounds"
+                  >Minimum rounds for a prize</span
+                >
+                <select id="sf-min-rounds">
+                  <option>1</option>
+                  <option selected>3</option>
+                  <option>5</option>
+                  <option>7</option>
+                  <option>11</option>
+                </select>
+              </label>
+            </div>
+            <label class="check-row"
+              ><input id="sf-email" type="checkbox" /><span
+                data-i18n="sfCollectEmail"
+                >Ask winners for their email (so the sponsor can deliver the
+                prize)</span
+              ></label
+            >
+          </fieldset>
+
+          <fieldset class="admin-card">
+            <legend class="stat-label" data-i18n="sfCategory">
+              Sponsored categories (optional)
+            </legend>
+            <p class="admin-note" data-i18n="sfCategoriesHint">
+              Up to 3. One is played each round, in turn: round 1 uses the
+              first, round 2 the second, round 3 the third, then again from the
+              first.
+            </p>
+            <div id="sf-cats"></div>
+            <p class="admin-note" data-i18n="sfCategoryNote">
+              Every answer in these categories is saved without player names;
+              download them from the campaign card.
+            </p>
+          </fieldset>
+
+          <fieldset class="admin-card">
+            <legend class="stat-label" data-i18n="sfWhen">When</legend>
+            <div class="sf-row">
+              <label class="field"
+                ><span class="field-label" data-i18n="sfStarts">Starts</span
+                ><input id="sf-starts" type="datetime-local" required
+              /></label>
+              <label class="field"
+                ><span class="field-label" data-i18n="sfEnds">Ends</span
+                ><input id="sf-ends" type="datetime-local" required
+              /></label>
+            </div>
+            <label class="switch"
+              ><input type="checkbox" id="sf-active" /><span
+                class="switch-track"
+                aria-hidden="true"
+              ></span
+              ><span data-i18n="sfActive">Campaign switched on</span></label
+            >
+          </fieldset>
+
+          <fieldset class="admin-card">
+            <legend class="stat-label" data-i18n="sfRules">
+              Extra rules (optional)
+            </legend>
+            <div class="sf-row">
+              <label class="field"
+                ><span class="field-label">English</span
+                ><textarea
+                  id="sf-rules-en"
+                  rows="3"
+                  maxlength="2000"
+                ></textarea>
+              </label>
+              <label class="field"
+                ><span class="field-label">Français</span
+                ><textarea
+                  id="sf-rules-fr"
+                  rows="3"
+                  maxlength="2000"
+                ></textarea>
+              </label>
+            </div>
+          </fieldset>
+
+          <p class="error" id="sf-error" hidden></p>
+          <div class="sf-actions">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              id="sf-cancel"
+              data-i18n="cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              id="sf-save"
+              data-i18n="save"
+            >
+              Save campaign
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ===================== ROOM CLOSED ===================== -->
+      <section class="view" id="view-closed" hidden>
+        <div class="landing-top">
+          <div class="lang-switch" role="group" aria-label="Language / Langue">
+            <button type="button" data-lang="en">EN</button
+            ><button type="button" data-lang="fr">FR</button>
+          </div>
+        </div>
+        <div class="closed-card">
+          <div class="closed-art" data-icon="closed"></div>
+          <h1 class="closed-title" id="closed-title">This room is closed</h1>
+          <p class="closed-text" id="closed-text"></p>
+          <button
+            class="btn btn-primary"
+            id="btn-closed-create"
+            data-i18n="createNewRoom"
+          >
+            Create a new room
+          </button>
+          <button
+            class="btn btn-secondary"
+            id="btn-closed-join"
+            data-i18n="joinAnotherRoom"
+          >
+            Join another room
+          </button>
+        </div>
+        <footer class="credit">
+          <span data-i18n="poweredBy">Powered by</span>
+          <strong>Jerttech</strong>
+          <span></span>
+        </footer>
+      </section>
+
+      <!-- ===================== LOBBY ===================== -->
+      <section class="view" id="view-lobby" hidden>
+        <header class="topbar">
+          <div class="room-code" id="lobby-code">----</div>
+          <div class="topbar-actions">
+            <div
+              class="lang-switch"
+              role="group"
+              aria-label="Language / Langue"
+            >
+              <button type="button" data-lang="en">EN</button
+              ><button type="button" data-lang="fr">FR</button>
+            </div>
+            <button
+              class="icon-btn"
+              id="btn-leave-lobby"
+              title="Leave room"
+              data-i18n="leave"
+              data-i18n-title="leaveRoom"
+            >
+              Leave
+            </button>
+          </div>
+        </header>
+
+        <div class="sponsor-banner" id="lobby-sponsor" hidden></div>
+        <p class="room-settings" id="lobby-settings"></p>
+        <div class="challenge-card" id="lobby-challenge" hidden>
+          <span class="challenge-title" data-i18n="challengeTitle"
+            >Party challenge</span
+          >
+          <p class="challenge-text" id="lobby-challenge-text"></p>
+          <span class="challenge-sub" data-i18n="challengeWho"
+            >Whoever finishes last takes it on.</span
+          >
+        </div>
+        <p class="lobby-hint" data-i18n="shareCode">
+          Share this code &mdash; everyone joins from their own phone.
+        </p>
+        <button class="btn btn-secondary invite-btn" id="btn-invite">
+          <span data-icon="link"></span
+          ><span data-i18n="inviteFriends">Invite friends with a link</span>
+        </button>
+
+        <ul class="player-list" id="lobby-players"></ul>
+
+        <div class="lobby-actions">
+          <button class="btn btn-primary" id="btn-start" hidden>
+            Start game
+          </button>
+          <p
+            class="waiting-note"
+            id="lobby-wait-note"
+            data-i18n="waitingForHost"
+          >
+            Waiting for the host to start&hellip;
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================== PLAYING ===================== -->
+      <section class="view" id="view-playing" hidden>
+        <!-- Stays pinned to the top while scrolling through the categories -->
+        <div class="play-bar" id="play-bar">
+          <header class="topbar">
+            <div class="play-bar-left">
+              <div class="room-code small" id="playing-code">----</div>
+              <div class="bar-letter" id="bar-letter" aria-hidden="true"></div>
+            </div>
+            <div class="topbar-actions">
+              <div
+                class="lang-switch"
+                role="group"
+                aria-label="Language / Langue"
+              >
+                <button type="button" data-lang="en">EN</button
+                ><button type="button" data-lang="fr">FR</button>
+              </div>
+              <div class="timer" id="timer-text" role="timer" aria-live="off">
+                1:00
+              </div>
+              <button
+                type="button"
+                class="players-pill"
+                id="players-pill"
+                aria-expanded="false"
+                aria-controls="players-panel"
+                hidden
+              >
+                <span data-icon="players"></span
+                ><span id="players-count">0</span>
+              </button>
+            </div>
+          </header>
+          <div class="timer-track">
+            <div class="timer-fill" id="timer-fill"></div>
+          </div>
+
+          <!-- Player list: the room head always has it and decides if everyone does -->
+          <div class="players-panel" id="players-panel" hidden>
+            <div class="players-panel-head">
+              <span class="players-panel-title" id="players-panel-title"></span>
+              <label class="switch" id="show-players-row" hidden>
+                <input type="checkbox" id="show-players-switch" />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span data-i18n="visibleToAll">Visible to everyone</span>
+              </label>
+            </div>
+            <p class="players-panel-hint" id="players-panel-hint" hidden></p>
+            <ul class="players-panel-list" id="players-panel-list"></ul>
+          </div>
+        </div>
+        <div class="play-bar-spacer" aria-hidden="true"></div>
+
+        <div class="letter-hero">
+          <div class="round-counter" id="round-counter"></div>
+          <div class="letter-hero-label" data-i18n="yourLetter">
+            Your letter
+          </div>
+          <div class="letter-hero-letter" id="round-letter">L</div>
+        </div>
+
+        <div class="progress-row" id="progress-row"></div>
+
+        <form class="category-list" id="category-list"></form>
+      </section>
+
+      <!-- ===================== REVEAL ===================== -->
+      <section class="view" id="view-reveal" hidden>
+        <header class="topbar">
+          <div class="room-code small" id="reveal-code">----</div>
+          <div class="topbar-actions">
+            <div
+              class="lang-switch"
+              role="group"
+              aria-label="Language / Langue"
+            >
+              <button type="button" data-lang="en">EN</button
+              ><button type="button" data-lang="fr">FR</button>
+            </div>
+            <button
+              class="icon-btn"
+              id="btn-leave-reveal"
+              title="Leave room"
+              data-i18n="leave"
+              data-i18n-title="leaveRoom"
+            >
+              Leave
+            </button>
+          </div>
+        </header>
+
+        <div class="reveal-banner" id="reveal-banner"></div>
+
+        <div class="reveal-categories" id="reveal-categories"></div>
+
+        <div class="sticky-action">
+          <button class="btn btn-primary" id="btn-show-scores">
+            <span id="show-scores-label" data-i18n="seeScores">See scores</span
+            ><span data-icon="arrow-right"></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===================== SCORES ===================== -->
+      <section class="view" id="view-scores" hidden>
+        <header class="topbar">
+          <div class="room-code small" id="scores-code">----</div>
+          <div class="topbar-actions">
+            <div
+              class="lang-switch"
+              role="group"
+              aria-label="Language / Langue"
+            >
+              <button type="button" data-lang="en">EN</button
+              ><button type="button" data-lang="fr">FR</button>
+            </div>
+            <button
+              class="icon-btn"
+              id="btn-leave-scores"
+              title="Leave room"
+              data-i18n="leave"
+              data-i18n-title="leaveRoom"
+            >
+              Leave
+            </button>
+          </div>
+        </header>
+
+        <div class="scores-hero">
+          <div class="scores-hero-label" id="scores-round">Round 1</div>
+          <div class="scores-hero-winner" id="scores-winner"></div>
+        </div>
+
+        <div class="prize-card" id="prize-card" hidden></div>
+
+        <div class="leaderboard" id="leaderboard">
+          <h2 class="leaderboard-title" data-i18n="scores">Scores</h2>
+          <ul class="leaderboard-list" id="leaderboard-list"></ul>
+          <button
+            type="button"
+            class="text-btn"
+            id="btn-show-all-scores"
+            hidden
+          ></button>
+        </div>
+
+        <div class="challenge-card is-final" id="final-challenge" hidden>
+          <span class="challenge-title" data-i18n="challengeTitle"
+            >Party challenge</span
+          >
+          <p class="challenge-text" id="final-challenge-text"></p>
+          <div class="challenge-losers" id="final-challenge-losers"></div>
+          <p class="challenge-verdict" id="final-challenge-verdict"></p>
+        </div>
+
+        <div class="letter-picker" id="letter-picker" hidden>
+          <p class="letter-picker-title" data-i18n="pickNextLetter">
+            You won the round &mdash; pick the next letter
+          </p>
+          <div class="letter-grid" id="letter-grid"></div>
+        </div>
+        <p class="waiting-note" id="reveal-wait-note" hidden></p>
+        <button
+          class="btn btn-primary"
+          id="btn-play-again"
+          hidden
+          data-i18n="playAgain"
+        >
+          Play again
+        </button>
+
+        <button class="btn btn-secondary" id="btn-show-answers">
+          <span data-icon="arrow-left"></span
+          ><span data-i18n="backToAnswers">Back to answers</span>
+        </button>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <div class="modal-backdrop" id="feedback-modal" hidden>
+      <form
+        class="modal feedback-modal"
+        id="feedback-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="feedback-title"
+      >
+        <div class="feedback-art" id="feedback-art"></div>
+        <h2 class="modal-title" id="feedback-title" data-i18n="feedbackTitle">
+          How was your game?
+        </h2>
+        <p class="modal-text" data-i18n="feedbackText">
+          Your rating helps Jerttech make Letter Blitz better.
+        </p>
+        <div
+          class="rating"
+          id="rating"
+          role="radiogroup"
+          aria-labelledby="feedback-title"
+        >
+          <button
+            type="button"
+            class="rating-star"
+            role="radio"
+            data-rating="1"
+          >
+            <span data-icon="star"></span>
+          </button>
+          <button
+            type="button"
+            class="rating-star"
+            role="radio"
+            data-rating="2"
+          >
+            <span data-icon="star"></span>
+          </button>
+          <button
+            type="button"
+            class="rating-star"
+            role="radio"
+            data-rating="3"
+          >
+            <span data-icon="star"></span>
+          </button>
+          <button
+            type="button"
+            class="rating-star"
+            role="radio"
+            data-rating="4"
+          >
+            <span data-icon="star"></span>
+          </button>
+          <button
+            type="button"
+            class="rating-star"
+            role="radio"
+            data-rating="5"
+          >
+            <span data-icon="star"></span>
+          </button>
+        </div>
+        <p class="rating-label" id="rating-label">&nbsp;</p>
+        <label class="field">
+          <span class="field-label" data-i18n="feedbackComment"
+            >Tell us more (optional)</span
+          >
+          <textarea
+            id="feedback-comment"
+            maxlength="1000"
+            rows="3"
+            data-i18n-placeholder="feedbackPlaceholder"
+          ></textarea>
+        </label>
+        <p class="error" id="feedback-error" hidden></p>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-feedback-skip"
+            data-i18n="skip"
+          >
+            Skip
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            id="btn-feedback-send"
+            disabled
+            data-i18n="send"
+          >
+            Send
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-backdrop" id="admin-modal" hidden>
+      <form
+        class="modal"
+        id="admin-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-login-title"
+        autocomplete="off"
+      >
+        <h2 class="modal-title" id="admin-login-title" data-i18n="adminSignIn">
+          Admin sign-in
+        </h2>
+        <label class="field">
+          <span class="field-label" data-i18n="password">Password</span>
+          <input
+            id="admin-password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+        </label>
+        <label class="field">
+          <span class="field-label" data-i18n="passcode">Passcode</span>
+          <input
+            id="admin-passcode"
+            type="password"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            required
+          />
+        </label>
+        <p class="error" id="admin-error" hidden></p>
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="btn-admin-cancel"
+            data-i18n="cancel"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            id="btn-admin-submit"
+            data-i18n="signIn"
+          >
+            Sign in
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-backdrop" id="leave-modal" hidden>
+      <div
+        class="modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="leave-title"
+        aria-describedby="leave-desc"
+      >
+        <h2 class="modal-title" id="leave-title">Leave this room?</h2>
+        <p class="modal-text" id="leave-desc"></p>
+
+        <!-- Regular player (or a host who is alone in the room) -->
+        <div class="modal-actions" id="leave-actions">
+          <button
+            class="btn btn-secondary"
+            id="btn-leave-cancel"
+            data-i18n="stay"
+          >
+            Stay
+          </button>
+          <button
+            class="btn btn-danger"
+            id="btn-leave-confirm"
+            data-i18n="leaveAndErase"
+          >
+            Leave &amp; erase
+          </button>
+        </div>
+
+        <!-- Room head: hand over the crown or close the room -->
+        <div class="host-leave" id="host-leave" hidden>
+          <p class="modal-subtitle" id="crown-label">
+            <span data-i18n="giveCrownTo">Give the crown to</span
+            ><span data-icon="crown"></span>
+          </p>
+          <div
+            class="crown-list"
+            id="crown-list"
+            role="radiogroup"
+            aria-labelledby="crown-label"
+          ></div>
+          <button
+            class="btn btn-primary"
+            id="btn-give-crown"
+            disabled
+            data-i18n="giveCrownAndLeave"
+          >
+            Give crown &amp; leave
+          </button>
+          <div class="modal-or"><span data-i18n="or">or</span></div>
+          <button
+            class="btn btn-danger-outline"
+            id="btn-close-room"
+            data-i18n="closeRoom"
+          >
+            Close the room for everyone
+          </button>
+          <button class="btn btn-secondary" id="btn-host-stay" data-i18n="stay">
+            Stay
+          </button>
+        </div>
       </div>
     </div>
-    <div class="play-bar-spacer" aria-hidden="true"></div>
 
-    <div class="letter-hero">
-      <div class="round-counter" id="round-counter"></div>
-      <div class="letter-hero-label" data-i18n="yourLetter">Your letter</div>
-      <div class="letter-hero-letter" id="round-letter">L</div>
-    </div>
-
-    <div class="progress-row" id="progress-row"></div>
-
-    <form class="category-list" id="category-list"></form>
-  </section>
-
-  <!-- ===================== REVEAL ===================== -->
-  <section class="view" id="view-reveal" hidden>
-    <header class="topbar">
-      <div class="room-code small" id="reveal-code">----</div>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-        <button class="icon-btn" id="btn-leave-reveal" title="Leave room" data-i18n="leave" data-i18n-title="leaveRoom">Leave</button>
-      </div>
-    </header>
-
-    <div class="reveal-banner" id="reveal-banner"></div>
-
-    <div class="reveal-categories" id="reveal-categories"></div>
-
-    <div class="sticky-action">
-      <button class="btn btn-primary" id="btn-show-scores"><span id="show-scores-label" data-i18n="seeScores">See scores</span><span data-icon="arrow-right"></span></button>
-    </div>
-  </section>
-
-  <!-- ===================== SCORES ===================== -->
-  <section class="view" id="view-scores" hidden>
-    <header class="topbar">
-      <div class="room-code small" id="scores-code">----</div>
-      <div class="topbar-actions">
-        <div class="lang-switch" role="group" aria-label="Language / Langue"><button type="button" data-lang="en">EN</button><button type="button" data-lang="fr">FR</button></div>
-        <button class="icon-btn" id="btn-leave-scores" title="Leave room" data-i18n="leave" data-i18n-title="leaveRoom">Leave</button>
-      </div>
-    </header>
-
-    <div class="scores-hero">
-      <div class="scores-hero-label" id="scores-round">Round 1</div>
-      <div class="scores-hero-winner" id="scores-winner"></div>
-    </div>
-
-    <div class="prize-card" id="prize-card" hidden></div>
-
-    <div class="leaderboard" id="leaderboard">
-      <h2 class="leaderboard-title" data-i18n="scores">Scores</h2>
-      <ul class="leaderboard-list" id="leaderboard-list"></ul>
-      <button type="button" class="text-btn" id="btn-show-all-scores" hidden></button>
-    </div>
-
-    <div class="challenge-card is-final" id="final-challenge" hidden>
-      <span class="challenge-title" data-i18n="challengeTitle">Party challenge</span>
-      <p class="challenge-text" id="final-challenge-text"></p>
-      <div class="challenge-losers" id="final-challenge-losers"></div>
-      <p class="challenge-verdict" id="final-challenge-verdict"></p>
-    </div>
-
-    <div class="letter-picker" id="letter-picker" hidden>
-      <p class="letter-picker-title" data-i18n="pickNextLetter">You won the round &mdash; pick the next letter</p>
-      <div class="letter-grid" id="letter-grid"></div>
-    </div>
-    <p class="waiting-note" id="reveal-wait-note" hidden></p>
-    <button class="btn btn-primary" id="btn-play-again" hidden data-i18n="playAgain">Play again</button>
-
-    <button class="btn btn-secondary" id="btn-show-answers"><span data-icon="arrow-left"></span><span data-i18n="backToAnswers">Back to answers</span></button>
-  </section>
-
-</div>
-
-<div class="toast" id="toast" hidden></div>
-
-<div class="modal-backdrop" id="feedback-modal" hidden>
-  <form class="modal feedback-modal" id="feedback-form" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
-    <div class="feedback-art" id="feedback-art"></div>
-    <h2 class="modal-title" id="feedback-title" data-i18n="feedbackTitle">How was your game?</h2>
-    <p class="modal-text" data-i18n="feedbackText">Your rating helps Jerttech make Letter Blitz better.</p>
-    <div class="rating" id="rating" role="radiogroup" aria-labelledby="feedback-title">
-      <button type="button" class="rating-star" role="radio" data-rating="1"><span data-icon="star"></span></button>
-      <button type="button" class="rating-star" role="radio" data-rating="2"><span data-icon="star"></span></button>
-      <button type="button" class="rating-star" role="radio" data-rating="3"><span data-icon="star"></span></button>
-      <button type="button" class="rating-star" role="radio" data-rating="4"><span data-icon="star"></span></button>
-      <button type="button" class="rating-star" role="radio" data-rating="5"><span data-icon="star"></span></button>
-    </div>
-    <p class="rating-label" id="rating-label">&nbsp;</p>
-    <label class="field">
-      <span class="field-label" data-i18n="feedbackComment">Tell us more (optional)</span>
-      <textarea id="feedback-comment" maxlength="1000" rows="3" data-i18n-placeholder="feedbackPlaceholder"></textarea>
-    </label>
-    <p class="error" id="feedback-error" hidden></p>
+    <!-- A room's party challenge, shown before joining: agree to join, or don't join -->
+<div class="modal-backdrop" id="challenge-modal" hidden>
+  <div class="modal challenge-modal" role="alertdialog" aria-modal="true" aria-labelledby="challenge-modal-title" aria-describedby="challenge-modal-text">
+    <h2 class="modal-title" id="challenge-modal-title" data-i18n="challengeModalTitle">This room has a party challenge</h2>
+    <p class="challenge-text" id="challenge-modal-text"></p>
+    <p class="modal-text" data-i18n="challengeModalWho">Whoever finishes last takes it on. Join only if you agree to it — if you don’t, you won’t be added to the room.</p>
+    <p class="modal-text challenge-modal-rules"><span data-i18n="challengeModalFree">Challenges must be legal and never involve money.</span> <a href="/terms.html" target="_blank" rel="noopener" data-i18n="challengeRulesBtn">Challenge rules</a></p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-secondary" id="btn-feedback-skip" data-i18n="skip">Skip</button>
-      <button type="submit" class="btn btn-primary" id="btn-feedback-send" disabled data-i18n="send">Send</button>
-    </div>
-  </form>
-</div>
-
-<div class="modal-backdrop" id="admin-modal" hidden>
-  <form class="modal" id="admin-form" role="dialog" aria-modal="true" aria-labelledby="admin-login-title" autocomplete="off">
-    <h2 class="modal-title" id="admin-login-title" data-i18n="adminSignIn">Admin sign-in</h2>
-    <label class="field">
-      <span class="field-label" data-i18n="password">Password</span>
-      <input id="admin-password" type="password" autocomplete="current-password" required />
-    </label>
-    <label class="field">
-      <span class="field-label" data-i18n="passcode">Passcode</span>
-      <input id="admin-passcode" type="password" inputmode="numeric" autocomplete="one-time-code" required />
-    </label>
-    <p class="error" id="admin-error" hidden></p>
-    <div class="modal-actions">
-      <button type="button" class="btn btn-secondary" id="btn-admin-cancel" data-i18n="cancel">Cancel</button>
-      <button type="submit" class="btn btn-primary" id="btn-admin-submit" data-i18n="signIn">Sign in</button>
-    </div>
-  </form>
-</div>
-
-<div class="modal-backdrop" id="leave-modal" hidden>
-  <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="leave-title" aria-describedby="leave-desc">
-    <h2 class="modal-title" id="leave-title">Leave this room?</h2>
-    <p class="modal-text" id="leave-desc"></p>
-
-    <!-- Regular player (or a host who is alone in the room) -->
-    <div class="modal-actions" id="leave-actions">
-      <button class="btn btn-secondary" id="btn-leave-cancel" data-i18n="stay">Stay</button>
-      <button class="btn btn-danger" id="btn-leave-confirm" data-i18n="leaveAndErase">Leave &amp; erase</button>
-    </div>
-
-    <!-- Room head: hand over the crown or close the room -->
-    <div class="host-leave" id="host-leave" hidden>
-      <p class="modal-subtitle" id="crown-label"><span data-i18n="giveCrownTo">Give the crown to</span><span data-icon="crown"></span></p>
-      <div class="crown-list" id="crown-list" role="radiogroup" aria-labelledby="crown-label"></div>
-      <button class="btn btn-primary" id="btn-give-crown" disabled data-i18n="giveCrownAndLeave">Give crown &amp; leave</button>
-      <div class="modal-or"><span data-i18n="or">or</span></div>
-      <button class="btn btn-danger-outline" id="btn-close-room" data-i18n="closeRoom">Close the room for everyone</button>
-      <button class="btn btn-secondary" id="btn-host-stay" data-i18n="stay">Stay</button>
+      <button type="button" class="btn btn-secondary" id="btn-challenge-decline" data-i18n="challengeDecline">No thanks</button>
+      <button type="button" class="btn btn-primary" id="btn-challenge-accept" data-i18n="challengeAccept">I agree — join</button>
     </div>
   </div>
 </div>
 
 <script src="/avatars.js"></script>
-<script src="/icons.js"></script>
-<script src="/i18n.js"></script>
-<script src="/app.js"></script>
-</body>
+    <script src="/icons.js"></script>
+    <script src="/i18n.js"></script>
+    <script src="/app.js"></script>
+  </body>
 </html>

@@ -511,7 +511,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       throw new GameError('create_failed', 'Could not create a room — please try again.');
     },
 
-    async join({ code, name, avatar, playerId }, meta) {
+    async join({ code, name, avatar, playerId, acceptedChallenge }, meta) {
       if (!(playerId && name === undefined)) checkAdminEntry(name, avatar);
       let id = playerId;
       const rejoining = playerId && name === undefined;
@@ -527,6 +527,10 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           return;
         }
         if (r.phase !== 'lobby') throw new GameError('game_started', 'This game already started. Ask the host for a new room.');
+        // A room with a party challenge only takes players who have read and accepted it.
+        if (r.challenge && acceptedChallenge !== r.challenge) {
+          throw new GameError('challenge_required', 'Read and accept the room’s challenge to join.');
+        }
         const n = cleanName(name);
         const online = Object.values(r.players).filter((p) => isOnline(p, t));
         if (online.length >= MAX_PLAYERS) throw new GameError('room_full', 'Room is full.');
@@ -755,13 +759,17 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room: null, playerId: null, extra: { deleted, dashboard: await dashboard() } };
     },
 
-    // Check a room exists and is open without joining it (used for invite links).
+    // Check a room exists and is open without joining it (invite links, and
+    // before joining, to show the room’s challenge).
     async peek({ code }, meta) {
       if (!(await underLimit(store, 'peek', meta.ip, 120, 3600000, now()))) {
         throw new GameError('too_many', 'Too many attempts. Try again later.');
       }
-      if (!(await load(code))) throw new GameError('room_not_found', 'Room not found. Check the code.');
-      return { room: null, playerId: null };
+      const loaded = await load(code);
+      if (!loaded) throw new GameError('room_not_found', 'Room not found. Check the code.');
+      // The challenge is shown to a player before they join.
+      const open = loaded.room.phase === 'lobby';
+      return { room: null, playerId: null, extra: { open, challenge: open ? loaded.room.challenge || '' : '' } };
     },
 
     // The room head decides whether everyone can see the player list during rounds.

@@ -115,7 +115,9 @@ Open the URL it prints (usually `http://localhost:8888`).
   Netlify environment variable); CSV exports neutralise spreadsheet
   formulas. Report problems via `/.well-known/security.txt`.
 - **Party challenge:** the room creator can add an optional challenge for
-  whoever finishes last ("The loser drinks 2 bottles of water"). It shows in
+  whoever finishes last ("The loser drinks 2 bottles of water"). Anyone
+  joining sees it in a pop-up first and is only added to the room if they
+  agree (the server refuses joins that haven't accepted it). It shows in
   the lobby; after the last round the final screen shows the top 5 and who
   the challenge falls on (everyone tied on the lowest score; nobody if all
   players tie). A "Challenge rules" link explains it must stay legal and
