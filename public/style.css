@@ -1104,6 +1104,12 @@ input[type="range"] {
   padding: 12px 8px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface-2);
   color: var(--text); font-family: 'Manrope', sans-serif; cursor: pointer;
 }
+.game-type.game-pick { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 420px) {
+  .game-type.game-pick { grid-template-columns: 1fr; }
+  .game-pick button { flex-direction: row; justify-content: space-between; text-align: left; gap: 10px; }
+  .game-pick .gt-sub { text-align: right; }
+}
 .game-type .icon { width: 30px; height: 30px; }
 .gt-title { font-weight: 800; font-size: 15px; }
 .gt-sub { font-size: 12px; font-weight: 600; color: var(--text-dim); }
@@ -1457,4 +1463,35 @@ textarea:focus { outline: none; border-color: var(--accent); }
 }
 .level-btn:hover { border-color: var(--accent); }
 .level-name { font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 15px; }
+
+/* ---------- Meaning Blitz ---------- */
+
+.meaning-row .category-fields { gap: 6px; }
+.meaning-row .meaning-word {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.meaning-hint { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.meaning-hint-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.reveal-meaning-lang { font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: none; letter-spacing: 0; }
+.reveal-meaning { margin: 0 0 8px; font-size: 14px; line-height: 1.4; color: var(--text); }
+.meaning-reveal .answer-chip-text { white-space: normal; overflow-wrap: anywhere; }
+.answer-chip.half { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); }
+.answer-chip.half .answer-chip-text,
+.answer-chip.half .answer-chip-points { color: var(--warn); font-weight: 600; }
+.meaning-graded-note { margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--warn); text-align: center; }
 .level-sub { font-size: 11px; font-weight: 600; color: var(--text-dim); }

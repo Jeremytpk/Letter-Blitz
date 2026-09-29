@@ -1,6 +1,7 @@
 import { getStore } from '@netlify/blobs';
 import { createGame, GameError } from '../lib/game.mjs';
 import { adminConfig } from '../lib/admin.mjs';
+import { createMeaningGrader } from '../lib/meaning-grade.mjs';
 import { MAX_ADMIN_BODY_BYTES, MAX_BODY_BYTES, originAllowed, tooManyRequests } from '../lib/security.mjs';
 
 // API responses are never cached and never reinterpreted by the browser.
@@ -31,7 +32,7 @@ export default async (req, context) => {
   }
 
   const store = getStore({ name: 'letter-blitz', consistency: 'strong' });
-  const handle = createGame(store, { adminCfg: adminConfig(process.env) });
+  const handle = createGame(store, { adminCfg: adminConfig(process.env), gradeMeanings: createMeaningGrader(process.env) });
   try {
     return reply(await handle(String(body.action || ''), body, { ip }));
   } catch (err) {

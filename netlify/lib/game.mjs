@@ -17,6 +17,8 @@ import { cleanText, isPlayerId, isRoomCode, underLimit } from './security.mjs';
 import { campaignCategories, cleanWinnerDetails, createSponsors, publicCampaign, SponsorError, winnerFields } from './sponsors.mjs';
 import { CATEGORY_SPEC } from './category-spec.mjs';
 import WORD_DATA from './word-data.mjs';
+import { FOREIGN, LANG_NAMES, RARE } from './meaning-data.mjs';
+import { createMeaningGrader } from './meaning-grade.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -285,7 +287,7 @@ function startWordRound(room, level, now) {
 
 // Everyone online has tapped "Done": the round can end early.
 function allFinished(room, now) {
-  if (!isWordGame(room) || room.phase !== 'playing') return false;
+  if (!hasDoneButton(room) || room.phase !== 'playing') return false;
   const online = Object.values(room.players).filter((p) => isOnline(p, now));
   return online.length > 0 && online.every((p) => room.finished && room.finished[p.id]);
 }
@@ -328,6 +330,129 @@ function scoreWordRound(room) {
   room.checkingSince = null;
   const final = room.round >= (room.totalRounds || DEFAULT_ROUNDS);
   room.reveal = { gameType: 'word', round: room.round, difficulty: room.difficulty, perCategory, roundScores, correct, times, winnerId, final };
+}
+
+// ---------------------------------------------------------------------------
+// Meaning Blitz: every player gets the same strange words — rare dictionary
+// words (with a short clue) and words from other languages (players are told
+// which) — and types what each one means. Claude grades the answers: right =
+// 10 points, almost = 5, wrong = 0. Players tap "Done" to stop their clock;
+// the round goes to the most points, then the earliest finish, and the round
+// winner picks which kind of words come next.
+// ---------------------------------------------------------------------------
+
+const MEANING_KINDS = ['mix', 'rare', 'foreign'];
+const MEANING_MAX_WORDS = 8;
+const MEANING_ANSWER_MAX = 120;
+const MEANING_POINTS = [0, 5, 10]; // by grade: wrong, almost, right
+
+const isMeaningGame = (room) => room.gameType === 'meaning';
+// Games where players tap "Done" to stop their own clock.
+const hasDoneButton = (room) => isWordGame(room) || isMeaningGame(room);
+const answerMax = (room) => (isMeaningGame(room) ? MEANING_ANSWER_MAX : 60);
+
+const meaningKey = (e) => `${e.lang}|${e.word}`;
+const rarePool = (room) => RARE[room.wordLang] || RARE.en;
+// Words from other languages than the room's own.
+const foreignPool = (room) => FOREIGN.filter((e) => e.lang !== room.wordLang);
+
+function meaningEntry(room, key) {
+  return [...rarePool(room), ...foreignPool(room)].find((e) => meaningKey(e) === key) || null;
+}
+
+function startMeaningRound(room, kind, now) {
+  room.round += 1;
+  room.letter = null;
+  room.difficulty = kind;
+  room.usedWords = room.usedWords || [];
+  // Words not played yet in this room first; replayed only once all are used.
+  const pick = (pool, count) => {
+    const fresh = shuffle(pool.filter((e) => !room.usedWords.includes(meaningKey(e))));
+    const old = shuffle(pool.filter((e) => room.usedWords.includes(meaningKey(e))));
+    return [...fresh, ...old].slice(0, count);
+  };
+  const count = room.categoriesPerRound;
+  let picks;
+  if (kind === 'rare') picks = pick(rarePool(room), count);
+  else if (kind === 'foreign') picks = pick(foreignPool(room), count);
+  else {
+    const rare = Math.ceil(count / 2);
+    picks = shuffle([...pick(rarePool(room), rare), ...pick(foreignPool(room), count - rare)]);
+  }
+  room.words = {};
+  room.categories = picks.map((e, i) => {
+    const id = `w${i + 1}`;
+    room.usedWords.push(meaningKey(e));
+    room.words[id] = meaningKey(e);
+    // The meaning stays on the server until the round is over.
+    return { id, label: id, word: e.word, lang: e.lang, langName: LANG_NAMES[e.lang] || null, clue: e.clue };
+  });
+  room.phase = 'playing';
+  room.startedAt = now + COUNTDOWN_MS;
+  room.answers = {};
+  room.finished = {};
+  room.reveal = null;
+  room.checkingSince = null;
+}
+
+// What the grader needs for each word of the round.
+function meaningGradeItems(room) {
+  return room.categories.map((cat) => {
+    const entry = meaningEntry(room, room.words[cat.id]) || { word: cat.word, meaning: {}, keywords: [] };
+    return {
+      key: cat.id,
+      word: entry.word,
+      language: (LANG_NAMES[entry.lang] || {}).en || entry.lang,
+      meaning: entry.meaning.en || entry.meaning.fr || '',
+      keywords: entry.keywords,
+      answers: Object.values(room.players).map((p) => ({ id: p.id, text: String((room.answers[p.id] || {})[cat.id] || '') })),
+    };
+  });
+}
+
+// grades: Map `${catId}|${playerId}` → { grade: 0|1|2, by: 'ai' | 'keywords' }
+function scoreMeaningRound(room, grades) {
+  const players = Object.values(room.players);
+  const checkedBy = new Set();
+  const perCategory = room.categories.map((cat) => {
+    const entry = meaningEntry(room, room.words[cat.id]);
+    const entries = players.map((p) => {
+      const text = String((room.answers[p.id] || {})[cat.id] || '').trim();
+      const result = grades.get(`${cat.id}|${p.id}`) || { grade: 0, by: 'keywords' };
+      if (text) checkedBy.add(result.by);
+      const grade = text ? result.grade : 0;
+      return { playerId: p.id, text, grade, points: MEANING_POINTS[grade] };
+    });
+    return {
+      catId: cat.id,
+      label: cat.label,
+      word: cat.word,
+      lang: cat.lang,
+      langName: cat.langName,
+      clue: cat.clue,
+      meaning: entry ? entry.meaning : null,
+      entries,
+    };
+  });
+
+  const roundScores = {};
+  const times = {};
+  for (const p of players) {
+    roundScores[p.id] = perCategory.reduce((sum, c) => sum + c.entries.find((e) => e.playerId === p.id).points, 0);
+    times[p.id] = finishTime(room, p.id);
+    p.totalScore += roundScores[p.id];
+    p.totalTime = (p.totalTime || 0) + times[p.id];
+  }
+  // Most points, then the earliest finish.
+  const ranked = [...players].sort((a, b) => roundScores[b.id] - roundScores[a.id] || times[a.id] - times[b.id]);
+  const winnerId = ranked.length && roundScores[ranked[0].id] > 0 ? ranked[0].id : null;
+
+  room.phase = 'reveal';
+  room.checkingSince = null;
+  const final = room.round >= (room.totalRounds || DEFAULT_ROUNDS);
+  // 'keywords' when some answers were graded roughly (Claude unavailable).
+  const graded = checkedBy.has('keywords') ? 'keywords' : 'ai';
+  room.reveal = { gameType: 'meaning', round: room.round, difficulty: room.difficulty, perCategory, roundScores, times, winnerId, final, graded };
 }
 
 function startRound(room, letter, now) {
@@ -489,7 +614,7 @@ function publicState(room, playerId, now) {
   };
 }
 
-export function createGame(store, { now = () => Date.now(), verify = checkCategories, adminCfg = null } = {}) {
+export function createGame(store, { now = () => Date.now(), verify = checkCategories, adminCfg = null, gradeMeanings = createMeaningGrader() } = {}) {
   const stats = createStats(store, now);
   const admin = createAdmin(store, adminCfg, now);
   const inbox = createInbox(store, now);
@@ -621,6 +746,27 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return result;
     }
 
+    // Meaning Blitz: Claude grades the answers (roughly by keywords if it can't).
+    if (isMeaningGame(room)) {
+      let grades = new Map();
+      try {
+        grades = await gradeMeanings(meaningGradeItems(room), { timeLimitMs: CHECK_TIME_LIMIT_MS });
+      } catch (err) {
+        console.warn('Meaning grading failed:', err.message);
+      }
+      let scoredMeanings = false;
+      const result = await mutate(code, (r) => {
+        if (r.round !== round || r.phase !== 'checking') return false;
+        scoreMeaningRound(r, grades);
+        scoredMeanings = true;
+      });
+      if (scoredMeanings) {
+        const players = Object.keys(result.players).length;
+        await stats.bump({ roundsPlayed: 1, roomMs: result.duration, playerMs: result.duration * players });
+      }
+      return result;
+    }
+
     const letter = room.letter.toLowerCase();
     // The sponsor's category is checked with the rule the admin picked for it (if any).
     const sponsorCheck = (roundSponsorCategory(room) || {}).checkAs || '';
@@ -682,9 +828,9 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         throw new GameError('too_many', 'Too many rooms created. Try again later.');
       }
       const challenge = cleanChallenge(settings.challenge);
-      const gameType = settings.gameType === 'word' ? 'word' : 'letter';
+      const gameType = ['word', 'meaning'].includes(settings.gameType) ? settings.gameType : 'letter';
       // Real prizes are for Letter Blitz only (for now).
-      if (gameType === 'word' && settings.sponsorId) {
+      if (gameType !== 'letter' && settings.sponsorId) {
         throw new GameError('word_no_prizes', 'Real prizes are only for Letter Blitz for now.');
       }
       const id = playerId || randomId(12);
@@ -707,8 +853,11 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           startedAt: null,
           duration: clampDuration(settings.duration),
           gameType,
-          wordLang: gameType === 'word' ? (settings.wordLang === 'fr' ? 'fr' : 'en') : null,
-          categoriesPerRound: clampCategoryCount(settings.categoriesPerRound, gameType === 'word' ? WORD_CATEGORIES.length : 12),
+          wordLang: gameType !== 'letter' ? (settings.wordLang === 'fr' ? 'fr' : 'en') : null,
+          categoriesPerRound: clampCategoryCount(
+            settings.categoriesPerRound,
+            gameType === 'word' ? WORD_CATEGORIES.length : gameType === 'meaning' ? MEANING_MAX_WORDS : 12
+          ),
           totalRounds: clampTotalRounds(settings.totalRounds),
           challenge,
           players: { [id]: { id, name: n, avatar: cleanAvatar(avatar), totalScore: 0, joinedAt: t, lastSeen: t } },
@@ -804,7 +953,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (r.finished && r.finished[playerId]) return false; // locked after "Done"
         const clean = {};
         for (const cat of r.categories) {
-          const text = cleanText((answers || {})[cat.id], { max: 60 });
+          const text = cleanText((answers || {})[cat.id], { max: answerMax(r) });
           if (text) clean[cat.id] = text;
         }
         r.answers[playerId] = clean;
@@ -832,6 +981,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         }
         if (!r.players[r.hostId]) r.hostId = playerId;
         if (isWordGame(r)) startWordRound(r, 'medium', t);
+        else if (isMeaningGame(r)) startMeaningRound(r, 'mix', t);
         else startRound(r, randomLetter(), t);
         started = true;
       });
@@ -852,7 +1002,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (r.phase !== 'reveal') return false;
         touch(r, playerId, t);
         if (r.reveal.final) throw new GameError('game_over', 'The game is over.');
-        if (isWordGame(r)) throw new GameError('wrong_game', 'This room plays Word Blitz.');
+        if (hasDoneButton(r)) throw new GameError('wrong_game', 'This room plays another game.');
         const winner = r.players[r.reveal.winnerId];
         const winnerAway = !winner || !isOnline(winner, t);
         const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
@@ -862,19 +1012,19 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       return { room, playerId };
     },
 
-    // Word Blitz: the player has finished — their clock stops and their
-    // answers lock. The round ends once everyone online is done.
+    // Word Blitz / Meaning Blitz: the player has finished — their clock stops
+    // and their answers lock. The round ends once everyone online is done.
     async done({ code, playerId, round, answers }) {
       let everyoneDone = false;
       const room = await mutate(code, (r) => {
         const t = now();
-        if (!isWordGame(r) || r.phase !== 'playing' || r.round !== round || !r.players[playerId]) return false;
+        if (!hasDoneButton(r) || r.phase !== 'playing' || r.round !== round || !r.players[playerId]) return false;
         if (t < r.startedAt || t > r.startedAt + r.duration + ANSWER_GRACE_MS) return false;
         r.finished = r.finished || {};
         if (r.finished[playerId]) return false;
         const clean = {};
         for (const cat of r.categories) {
-          const text = cleanText((answers || {})[cat.id], { max: 60 });
+          const text = cleanText((answers || {})[cat.id], { max: answerMax(r) });
           if (text) clean[cat.id] = text;
         }
         r.answers[playerId] = clean;
@@ -886,19 +1036,25 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     },
 
     // Word Blitz: the round winner (or the host, if they're away) picks the
-    // next round's difficulty, which starts it.
+    // next round's difficulty, which starts it. Meaning Blitz: they pick which
+    // kind of words come next ('mix', 'rare' or 'foreign').
     async chooseDifficulty({ code, playerId, level }) {
-      if (!Object.hasOwn(DIFFICULTY_SHOWN, level)) throw new GameError('invalid_level', 'Pick a difficulty.');
+      if (!Object.hasOwn(DIFFICULTY_SHOWN, level) && !MEANING_KINDS.includes(level)) {
+        throw new GameError('invalid_level', 'Pick a difficulty.');
+      }
       const room = await mutate(code, (r) => {
         const t = now();
-        if (r.phase !== 'reveal' || !isWordGame(r)) return false;
+        if (r.phase !== 'reveal' || !hasDoneButton(r)) return false;
+        const valid = isMeaningGame(r) ? MEANING_KINDS.includes(level) : Object.hasOwn(DIFFICULTY_SHOWN, level);
+        if (!valid) throw new GameError('invalid_level', 'Pick a difficulty.');
         touch(r, playerId, t);
         if (r.reveal.final) throw new GameError('game_over', 'The game is over.');
         const winner = r.players[r.reveal.winnerId];
         const winnerAway = !winner || !isOnline(winner, t);
         const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
         if (!allowed) throw new GameError('winner_only_level', 'Only the round winner picks the difficulty.');
-        startWordRound(r, level, t);
+        if (isMeaningGame(r)) startMeaningRound(r, level, t);
+        else startWordRound(r, level, t);
       });
       return { room, playerId };
     },

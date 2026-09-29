@@ -31,6 +31,27 @@ The words live in `scripts/word-list.mjs`; `npm run build-words` fetches
 their meanings into `netlify/lib/word-data.mjs` and lists any word that
 needs a look.
 
+## Meaning Blitz
+
+A third game (fun rooms only, for now). Everyone gets the same strange
+words — rare dictionary words in the room's language (English or French),
+each with a short clue, and words from other languages (Japanese, Zulu,
+Welsh, Wolof…), where the game says which language — and types what each
+one means, in English or French. Players tap **Done** to stop their clock.
+Answers are graded by Claude: right = 10 points, almost = 5, wrong = 0.
+After the round, every word's real meaning is shown with everyone's
+answers. The round goes to the most points, then the earliest finish, and
+the winner picks the next round's words: Mix, Rare words or Foreign words.
+
+- The words, clues and meanings are written by hand in
+  `netlify/lib/meaning-data.mjs`; grading is in
+  `netlify/lib/meaning-grade.mjs`.
+- Grading needs an `ANTHROPIC_API_KEY` environment variable (set it in
+  Netlify, and in `.env` to test locally). `MEANING_MODEL` can pick another
+  Claude model (default `claude-opus-5-5`). Without a key, or if Claude
+  doesn't answer within about 7 seconds (Netlify stops a function after 10),
+  answers are graded roughly by keywords and the answers screen says so.
+
 ## Deploy
 
 1. On [netlify.com](https://netlify.com), **Add new site \+ Import from Git** and

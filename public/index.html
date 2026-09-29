@@ -147,7 +147,7 @@
         </div>
 
         <div class="card" id="panel-create" hidden>
-          <!-- Which game: Letter Blitz or Word Blitz -->
+          <!-- Which game: Letter Blitz, Word Blitz or Meaning Blitz -->
           <div class="field">
             <span class="field-label" id="game-pick-label" data-i18n="whichGame">Game</span>
             <div class="game-type game-pick" id="game-pick" role="radiogroup" aria-labelledby="game-pick-label">
@@ -158,6 +158,10 @@
               <button type="button" role="radio" data-game="word">
                 <span class="gt-title">Word Blitz</span>
                 <span class="gt-sub" data-i18n="wordBlitzSub">Complete words with missing letters</span>
+              </button>
+              <button type="button" role="radio" data-game="meaning">
+                <span class="gt-title">Meaning Blitz</span>
+                <span class="gt-sub" data-i18n="meaningBlitzSub">Guess what strange words mean</span>
               </button>
             </div>
           </div>
@@ -245,7 +249,7 @@
           </label>
           <label class="field">
             <span class="field-label"
-              ><span data-i18n="categoriesPerRound">Categories per round:</span>
+              ><span id="catcount-label" data-i18n="categoriesPerRound">Categories per round:</span>
               <span id="catcount-out">9</span></span
             >
             <input
