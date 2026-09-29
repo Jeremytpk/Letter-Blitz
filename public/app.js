@@ -147,6 +147,7 @@
     closedText: document.getElementById('closed-text'),
     btnClosedCreate: document.getElementById('btn-closed-create'),
     btnClosedJoin: document.getElementById('btn-closed-join'),
+    btnClosedHome: document.getElementById('btn-closed-home'),
 
     playBar: document.getElementById('play-bar'),
     playersPill: document.getElementById('players-pill'),
@@ -172,6 +173,19 @@
     btnGiveCrown: document.getElementById('btn-give-crown'),
     btnCloseRoom: document.getElementById('btn-close-room'),
     closeRoomLock: document.getElementById('close-room-lock'),
+    gamePick: document.getElementById('game-pick'),
+    wordLangField: document.getElementById('word-lang-field'),
+    wordLangChoice: document.getElementById('word-lang-choice'),
+    roundHeroLabel: document.getElementById('round-hero-label'),
+    doneBar: document.getElementById('done-bar'),
+    btnDone: document.getElementById('btn-done'),
+    doneNote: document.getElementById('done-note'),
+    letterPickerTitle: document.getElementById('letter-picker-title'),
+    meaningModal: document.getElementById('meaning-modal'),
+    meaningCat: document.getElementById('meaning-cat'),
+    meaningWord: document.getElementById('meaning-word'),
+    meaningText: document.getElementById('meaning-text'),
+    btnMeaningClose: document.getElementById('btn-meaning-close'),
     idleBanner: document.getElementById('idle-banner'),
     idleText: document.getElementById('idle-text'),
     btnKeepOpen: document.getElementById('btn-keep-open'),
@@ -414,7 +428,7 @@
   els.btnCreate.addEventListener('click', () => {
     const name = landingName();
     if (!name) return;
-    const prizeGame = gameType === 'prizes' && availableSponsors.length > 0;
+    const prizeGame = selectedGame === 'letter' && gameType === 'prizes' && availableSponsors.length > 0;
     if (prizeGame && !chosenSponsor) {
       els.landingError.textContent = t('pickSponsorFirst');
       els.landingError.hidden = false;
@@ -430,6 +444,8 @@
         categoriesPerRound: Number(els.catcountInput.value),
         sponsorId: prizeGame ? chosenSponsor : undefined,
         challenge: els.challengeInput.value.trim() || undefined,
+        gameType: selectedGame,
+        wordLang: selectedGame === 'word' ? selectedWordLang : undefined,
       },
     });
   });
@@ -439,6 +455,40 @@
     els.challengeInfo.hidden = !open;
     els.btnChallengeInfo.setAttribute('aria-expanded', String(open));
   });
+
+  // ---------------- which game: Letter Blitz / Word Blitz ----------------
+
+  // Word Blitz has 10 categories and no prize games (for now); its words are
+  // in the language the creator picks.
+  const WORD_CATEGORY_COUNT = 10;
+  let selectedGame = 'letter';
+  let selectedWordLang = window.i18n.lang === 'fr' ? 'fr' : 'en';
+  function renderGamePick() {
+    for (const btn of els.gamePick.querySelectorAll('[data-game]')) {
+      btn.setAttribute('aria-checked', String(btn.dataset.game === selectedGame));
+    }
+    const word = selectedGame === 'word';
+    els.wordLangField.hidden = !word;
+    for (const btn of els.wordLangChoice.querySelectorAll('[data-word-lang]')) {
+      btn.setAttribute('aria-checked', String(btn.dataset.wordLang === selectedWordLang));
+    }
+    els.catcountInput.max = word ? WORD_CATEGORY_COUNT : 12;
+    if (Number(els.catcountInput.value) > Number(els.catcountInput.max)) els.catcountInput.value = els.catcountInput.max;
+    els.catcountOut.textContent = els.catcountInput.value;
+    renderGameType();
+  }
+  for (const btn of els.gamePick.querySelectorAll('[data-game]')) {
+    btn.addEventListener('click', () => {
+      selectedGame = btn.dataset.game;
+      renderGamePick();
+    });
+  }
+  for (const btn of els.wordLangChoice.querySelectorAll('[data-word-lang]')) {
+    btn.addEventListener('click', () => {
+      selectedWordLang = btn.dataset.wordLang;
+      renderGamePick();
+    });
+  }
 
   // ---------------- game type: just for fun / real prizes ----------------
 
@@ -462,7 +512,8 @@
   }
 
   function renderGameType() {
-    const any = availableSponsors.length > 0;
+    // Real prizes are for Letter Blitz only.
+    const any = availableSponsors.length > 0 && selectedGame === 'letter';
     els.gameTypeField.hidden = !any;
     for (const btn of els.gameTypeField.querySelectorAll('[data-game-type]')) {
       btn.setAttribute('aria-checked', String(btn.dataset.gameType === gameType));
@@ -1331,15 +1382,17 @@
     window.scrollTo(0, 0);
   }
 
+  // tab: 'create' or 'join' opens that tab; 'home' is the plain start page.
   function leaveClosedPage(tab) {
     closedInfo = null;
-    setTab(tab);
+    setTab(tab === 'create' ? 'create' : 'join');
     showView('landing');
     window.scrollTo(0, 0);
     if (tab === 'join') els.codeInput.focus();
   }
   els.btnClosedCreate.addEventListener('click', () => leaveClosedPage('create'));
   els.btnClosedJoin.addEventListener('click', () => leaveClosedPage('join'));
+  els.btnClosedHome.addEventListener('click', () => leaveClosedPage('home'));
 
   // Back to the start screen because the room is gone. The player's name is
   // kept; only a deliberate "Leave" erases their saved data.
@@ -1870,11 +1923,13 @@
   function renderLobby(state) {
     els.lobbyCode.textContent = state.code;
     renderSponsorBanner(els.lobbySponsor, sponsorFor(state));
-    els.lobbySettings.textContent = t('lobbySettings', {
+    const settings = t('lobbySettings', {
       rounds: roundsText(state.totalRounds),
       seconds: Math.round(state.duration / 1000),
       cats: state.categoriesPerRound,
     });
+    els.lobbySettings.textContent =
+      state.gameType === 'word' ? `Word Blitz · ${t(`wordsIn_${state.wordLang}`)} · ${settings}` : `Letter Blitz · ${settings}`;
     showAllFinal = false;
     els.lobbyChallenge.hidden = !state.challenge;
     els.lobbyChallengeText.textContent = state.challenge ? `“${state.challenge}”` : '';
@@ -1902,14 +1957,21 @@
     els.lobbyWaitNote.hidden = isHost;
   }
 
+  // Is this round's letter (Letter Blitz) or are its words (Word Blitz) out yet?
+  const roundShown = (state) => !!(state && (state.gameType === 'word' ? state.revealed : state.letter));
+
   function renderPlaying(state) {
+    const word = state.gameType === 'word';
     els.playingCode.textContent = state.code;
     els.roundCounter.textContent = t('roundOf', { round: state.round, total: state.totalRounds });
-    els.roundLetter.textContent = state.letter || '?';
-    els.barLetter.textContent = state.letter || '';
+    els.roundHeroLabel.textContent = word ? t('completeTheWords') : t('yourLetter');
+    els.roundLetter.classList.toggle('is-level', word && roundShown(state));
+    els.roundLetter.textContent = word ? (roundShown(state) ? t(`level_${state.difficulty}`) : '?') : state.letter || '?';
+    els.barLetter.textContent = word ? '' : state.letter || '';
+    els.doneBar.hidden = !word || !roundShown(state);
 
-    // During the 3-2-1 countdown the letter is still hidden.
-    if (!state.letter) {
+    // During the 3-2-1 countdown the letter (or the words) are still hidden.
+    if (!roundShown(state)) {
       els.categoryList.innerHTML = '';
       answerInputs.clear();
       renderedRound = 0;
@@ -1924,7 +1986,7 @@
       answersDirty = false;
       els.categoryList.innerHTML = '';
       answerInputs.clear();
-      for (const cat of state.categories) {
+      for (const cat of word ? [] : state.categories) {
         const row = document.createElement('div');
         row.className = 'category-row';
         row.innerHTML = `
@@ -1943,6 +2005,7 @@
         answerInputs.set(cat.id, input);
         els.categoryList.appendChild(row);
       }
+      if (word) for (const cat of state.categories) els.categoryList.appendChild(wordRow(cat, state));
       const firstInput = els.categoryList.querySelector('.category-input');
       if (firstInput) setTimeout(() => firstInput.focus(), 150);
     }
@@ -1950,10 +2013,103 @@
     startTimerLoop(state.startedAt, state.duration);
     renderProgress(state.progress);
     renderPlayersPanel(state);
+    if (word) renderDone(state);
     if (state.sponsorId) decorateSponsorRow(sponsorFor(state));
     // Time's up but the server hasn't switched to checking yet: keep the note.
     if (serverNow() >= state.startedAt + state.duration) renderChecking();
   }
+
+  // ---------------- Word Blitz ----------------
+
+  // One word to complete: its letter boxes (given letters, and what the player
+  // has typed in the gaps) above the answer field.
+  function wordRow(cat, state) {
+    const row = document.createElement('div');
+    row.className = 'category-row word-row';
+    row.dataset.catId = cat.id;
+    row.innerHTML = `
+      <div class="category-fields">
+        <label class="category-label"></label>
+        <div class="word-pattern" aria-hidden="true"></div>
+        <input class="category-input" type="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" />
+      </div>
+    `;
+    row.querySelector('.category-label').textContent = `${catLabel(cat)} · ${t('lettersCount', { count: cat.pattern.length })}`;
+    const input = row.querySelector('.category-input');
+    input.maxLength = cat.pattern.length + 4;
+    input.placeholder = t('typeTheWord');
+    input.setAttribute('aria-label', `${catLabel(cat)}: ${cat.pattern.map((c) => c || '_').join(' ')}`);
+    input.value = (state.yourAnswers || {})[cat.id] || '';
+    const boxes = row.querySelector('.word-pattern');
+    const draw = () => drawPattern(boxes, cat.pattern, input.value);
+    input.addEventListener('input', () => {
+      draw();
+      queueAnswerSync();
+    });
+    draw();
+    answerInputs.set(cat.id, input);
+    return row;
+  }
+
+  function drawPattern(el, pattern, typed) {
+    const letters = [...String(typed || '').replace(/\s+/g, '').toUpperCase()];
+    el.innerHTML = '';
+    pattern.forEach((given, i) => {
+      const box = document.createElement('span');
+      box.className = 'word-box' + (given ? ' is-given' : letters[i] ? ' is-typed' : '');
+      box.textContent = given || letters[i] || '';
+      el.appendChild(box);
+    });
+  }
+
+  const clock = (ms) => {
+    const secs = Math.round((ms || 0) / 1000);
+    return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  };
+
+  // "Done": the player's clock stops and their answers lock.
+  function renderDone(state) {
+    const finished = state.yourFinishTime != null;
+    els.btnDone.hidden = finished;
+    els.doneNote.hidden = !finished;
+    if (finished) {
+      els.doneNote.textContent = t('youFinishedIn', { time: clock(state.yourFinishTime) });
+      for (const input of answerInputs.values()) input.disabled = true;
+    }
+  }
+  els.btnDone.addEventListener('click', async () => {
+    if (!currentState) return;
+    els.btnDone.disabled = true;
+    clearTimeout(answerTimer);
+    answersDirty = false;
+    try {
+      await api('done', { round: currentState.round, answers: collectAnswers() });
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      els.btnDone.disabled = false;
+    }
+  });
+
+  // ⓘ: what a word means, in the player's language (from Wikipedia).
+  function showMeaning(cat) {
+    const m = cat.meaning || {};
+    els.meaningCat.textContent = catLabel({ id: cat.catId, label: cat.label });
+    els.meaningWord.textContent = cat.word;
+    els.meaningText.textContent = m[window.i18n.lang] || m.en || m.fr || t('noMeaning');
+    els.meaningModal.hidden = false;
+    els.btnMeaningClose.focus();
+  }
+  const closeMeaning = () => {
+    els.meaningModal.hidden = true;
+  };
+  els.btnMeaningClose.addEventListener('click', closeMeaning);
+  els.meaningModal.addEventListener('click', (e) => {
+    if (e.target === els.meaningModal) closeMeaning();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.meaningModal.hidden) closeMeaning();
+  });
 
   // ---------------- timer bar pinning ----------------
 
@@ -2011,8 +2167,8 @@
         p.name + (p.id === myPlayerId ? ` (${t('you')})` : '') + (p.connected ? '' : ` (${t('offline')})`);
       const progEl = li.querySelector('.pl-progress');
       if (prog) {
-        progEl.textContent = `${prog.filled}/${prog.total}`;
-        progEl.classList.toggle('is-done', prog.filled >= prog.total);
+        progEl.textContent = prog.done ? '✓' : `${prog.filled}/${prog.total}`;
+        progEl.classList.toggle('is-done', prog.done || prog.filled >= prog.total);
       }
       els.playersPanelList.appendChild(li);
     }
@@ -2055,11 +2211,11 @@
     const sorted = [...currentState.players].sort((a, b) => a.name.localeCompare(b.name));
     for (const p of sorted) {
       const info = progress[p.id] || { filled: 0, total: 1 };
-      const done = info.filled >= info.total;
+      const done = info.done || info.filled >= info.total;
       const pip = document.createElement('div');
       pip.className = 'progress-pip' + (done ? ' is-done' : '') + (p.id === myPlayerId ? ' is-me' : '');
       pip.innerHTML = `<span class="dot"></span>${avatarHTML(p.avatar, p.name).replace('class="avatar', 'class="avatar avatar-sm')}<span></span>`;
-      pip.querySelector('span:last-child').textContent = `${p.name} ${info.filled}/${info.total}`;
+      pip.querySelector('span:last-child').textContent = `${p.name} ${info.done ? '✓' : `${info.filled}/${info.total}`}`;
       els.progressRow.appendChild(pip);
     }
   }
@@ -2076,7 +2232,7 @@
         timerRAF = requestAnimationFrame(tick);
         return;
       }
-      if (currentState && currentState.phase === 'playing' && !currentState.letter) {
+      if (currentState && currentState.phase === 'playing' && !roundShown(currentState)) {
         // Countdown finished locally — fetch the letter right away.
         clearTimeout(pollTimer);
         poll();
@@ -2127,6 +2283,10 @@
     document.getElementById('show-scores-label').textContent = reveal.final ? t('seeFinalScores') : t('seeScores');
 
     els.revealCategories.innerHTML = '';
+    if (reveal.gameType === 'word') {
+      renderWordReveal(reveal, playersById);
+      return;
+    }
     for (const cat of reveal.perCategory) {
       const block = document.createElement('div');
       block.className = 'reveal-cat';
@@ -2176,6 +2336,51 @@
     }
   }
 
+  // Word Blitz answers: each word (with ⓘ for its meaning) and who got it.
+  function renderWordReveal(reveal, playersById) {
+    for (const cat of reveal.perCategory) {
+      const block = document.createElement('div');
+      block.className = 'reveal-cat';
+      const title = document.createElement('div');
+      title.className = 'reveal-cat-title reveal-word-title';
+      title.innerHTML = '<span class="reveal-word-cat"></span><span class="reveal-word"></span><button type="button" class="info-btn">i</button>';
+      title.querySelector('.reveal-word-cat').textContent = catLabel({ id: cat.catId, label: cat.label });
+      title.querySelector('.reveal-word').textContent = cat.word.toUpperCase();
+      const info = title.querySelector('.info-btn');
+      info.setAttribute('aria-label', t('meaningOf', { word: cat.word }));
+      info.title = t('meaningOf', { word: cat.word });
+      info.addEventListener('click', () => showMeaning(cat));
+      block.appendChild(title);
+
+      const answers = document.createElement('div');
+      answers.className = 'reveal-answers';
+      for (const entry of [...cat.entries].sort((a, b) => b.points - a.points)) {
+        const player = playersById.get(entry.playerId);
+        if (!player) continue;
+        const chip = document.createElement('div');
+        chip.className = 'answer-chip ' + (entry.correct ? 'valid' : 'invalid');
+        chip.innerHTML = `
+          ${avatarHTML(player.avatar, player.name).replace('class="avatar', 'class="avatar avatar-sm')}
+          <span class="answer-chip-name"></span>
+          <span class="answer-chip-text"></span>
+          <span class="answer-chip-points"></span>
+        `;
+        chip.querySelector('.answer-chip-name').textContent = player.name;
+        const textEl = chip.querySelector('.answer-chip-text');
+        textEl.textContent = entry.text || t('noAnswer');
+        if (!entry.text) textEl.classList.add('answer-chip-empty');
+        chip.querySelector('.answer-chip-points').textContent = entry.correct ? `+${entry.points}` : entry.text ? t('wrongWord') : '—';
+        answers.appendChild(chip);
+      }
+      block.appendChild(answers);
+      els.revealCategories.appendChild(block);
+    }
+  }
+
+  // Word Blitz ranks by points, then by the lowest total time.
+  const rankPlayers = (state) =>
+    [...state.players].sort((a, b) => b.totalScore - a.totalScore || (state.gameType === 'word' ? a.totalTime - b.totalTime : 0));
+
   function renderScores(state) {
     const reveal = state.reveal;
     if (!reveal) return;
@@ -2191,7 +2396,12 @@
       // Game over: the winner is whoever has the most points overall.
       els.scoresRound.textContent = t('finalResults', { rounds: roundsText(state.totalRounds) });
       const best = Math.max(...state.players.map((p) => p.totalScore));
-      const leaders = state.players.filter((p) => p.totalScore === best);
+      let leaders = state.players.filter((p) => p.totalScore === best);
+      // Word Blitz: a tie on points goes to the fastest overall.
+      if (state.gameType === 'word' && leaders.length > 1) {
+        const fastest = Math.min(...leaders.map((p) => p.totalTime));
+        leaders = leaders.filter((p) => p.totalTime === fastest);
+      }
       setIconText(
         els.scoresWinner,
         leaders.length > 1 ? 'tie' : 'trophy',
@@ -2200,6 +2410,19 @@
           : leaders[0].id === myPlayerId
             ? t('youWinGame')
             : t('playerWinsGame', { name: leaders[0].name })
+      );
+    } else if (reveal.gameType === 'word') {
+      els.scoresRound.textContent = t('roundLevel', { round: state.round, total: state.totalRounds, level: t(`level_${reveal.difficulty}`) });
+      setIconText(
+        els.scoresWinner,
+        winner ? 'trophy' : null,
+        !winner
+          ? t('roundOver')
+          : t(winner.id === myPlayerId ? 'youWonWords' : 'playerWonWords', {
+              name: winner.name,
+              count: reveal.correct[winner.id],
+              time: clock(reveal.times[winner.id]),
+            })
       );
     } else {
       els.scoresRound.textContent = t('roundLetter', { round: state.round, total: state.totalRounds, letter: reveal.letter });
@@ -2217,7 +2440,7 @@
 
     renderPrizeCard(state);
     els.leaderboardList.innerHTML = '';
-    const ranked = [...state.players].sort((a, b) => b.totalScore - a.totalScore);
+    const ranked = rankPlayers(state);
     // Final results show the top 5; everyone else is one tap away.
     const shortList = reveal.final && ranked.length > FINAL_TOP && !showAllFinal;
     els.btnShowAllScores.hidden = !(reveal.final && ranked.length > FINAL_TOP);
@@ -2233,7 +2456,10 @@
         <span class="player-score"></span>
       `;
       li.querySelector('.player-name').textContent = p.name + (p.id === myPlayerId ? ` (${t('you')})` : '');
-      li.querySelector('.round-points').textContent = `+${reveal.roundScores[p.id] || 0}`;
+      li.querySelector('.round-points').textContent =
+        reveal.gameType === 'word' && reveal.times
+          ? `+${reveal.roundScores[p.id] || 0} · ${clock(reveal.times[p.id])}`
+          : `+${reveal.roundScores[p.id] || 0}`;
       li.querySelector('.player-score').textContent = t('pts', { points: p.totalScore });
       els.leaderboardList.appendChild(li);
     });
@@ -2248,11 +2474,32 @@
       els.revealWaitNote.textContent = t('waitingForRestart');
       els.revealWaitNote.hidden = amHost;
     } else if (!amWinner && winner) {
-      els.revealWaitNote.textContent = t('waitingForPick', { name: winner.name });
+      els.revealWaitNote.textContent = t(reveal.gameType === 'word' ? 'waitingForLevel' : 'waitingForPick', { name: winner.name });
       els.revealWaitNote.hidden = false;
     }
 
-    if (amWinner && els.letterGrid.childElementCount === 0) {
+    // Word Blitz: the winner picks the next round's difficulty.
+    const wordGame = reveal.gameType === 'word';
+    els.letterPickerTitle.textContent = t(wordGame ? 'pickNextLevel' : 'pickNextLetter');
+    if (els.letterGrid.dataset.kind !== (wordGame ? 'level' : 'letter')) els.letterGrid.innerHTML = '';
+    els.letterGrid.dataset.kind = wordGame ? 'level' : 'letter';
+    els.letterGrid.classList.toggle('level-grid', wordGame);
+    if (amWinner && wordGame && els.letterGrid.childElementCount === 0) {
+      for (const level of ['easy', 'medium', 'hard']) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'level-btn';
+        btn.innerHTML = '<span class="level-name"></span><span class="level-sub"></span>';
+        btn.querySelector('.level-name').textContent = t(`level_${level}`);
+        btn.querySelector('.level-sub').textContent = t(`levelSub_${level}`);
+        btn.addEventListener('click', () => {
+          api('chooseDifficulty', { level }).catch((err) => showToast(err.message));
+        });
+        els.letterGrid.appendChild(btn);
+      }
+    }
+
+    if (amWinner && !wordGame && els.letterGrid.childElementCount === 0) {
       const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
       for (const L of letters) {
         const btn = document.createElement('button');
@@ -2445,6 +2692,12 @@
   window.i18n.onChange(() => {
     // Relabel the answer fields in place so nothing typed is lost.
     for (const row of els.categoryList.querySelectorAll('.category-row')) {
+      if (row.classList.contains('word-row')) {
+        const cat = currentState && currentState.categories.find((c) => c.id === row.dataset.catId);
+        if (cat && cat.pattern) row.querySelector('.category-label').textContent = `${catLabel(cat)} · ${t('lettersCount', { count: cat.pattern.length })}`;
+        row.querySelector('.category-input').placeholder = t('typeTheWord');
+        continue;
+      }
       row.querySelector('.category-label').textContent = catLabel({ id: row.dataset.catId });
       if (currentState && currentState.letter) {
         row.querySelector('.category-input').placeholder = t('startsWith', { letter: currentState.letter });
@@ -2478,6 +2731,7 @@
         else setTimeout(rejoin, 3000); // offline — keep trying, keep the saved data
       });
   }
+  renderGamePick();
   loadAvailableSponsors();
 
   // Count one visit per browser session. The visitor id is random and only

@@ -1383,3 +1383,78 @@ textarea:focus { outline: none; border-color: var(--accent); }
 }
 .idle-banner span { flex: 1; }
 .idle-banner .btn { flex-shrink: 0; }
+.closed-home { align-self: center; margin-top: 4px; font-size: 15px; color: var(--text-dim); }
+
+/* ---------- Word Blitz ---------- */
+
+.letter-hero-letter.is-level { font-size: 40px; padding: 10px 0; }
+.word-row .category-fields { gap: 8px; }
+.word-pattern { display: flex; gap: 3px; flex-wrap: nowrap; }
+.word-box {
+  flex: 1 1 0;
+  max-width: 30px;
+  min-width: 0;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1.5px dashed var(--border);
+  background: var(--surface-2);
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 700;
+  font-size: clamp(11px, 3.6vw, 16px);
+  color: var(--text-dim);
+}
+.word-box.is-given { border-style: solid; border-color: var(--accent); background: var(--surface); color: var(--accent); }
+.word-box.is-typed { border-style: solid; color: var(--text); }
+.done-bar {
+  position: sticky;
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.done-bar .btn { box-shadow: var(--shadow); }
+.done-note {
+  margin: 0;
+  text-align: center;
+  font-weight: 800;
+  color: var(--good);
+  background: var(--good-bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.reveal-word-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.reveal-word { font-family: 'Unbounded', sans-serif; font-size: 15px; letter-spacing: 0.04em; color: var(--text); text-transform: none; }
+.info-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font: 800 14px/1 'Unbounded', sans-serif;
+  font-style: italic;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.meaning-cat { margin: 0; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.meaning-source { margin: 0; font-size: 12px; color: var(--text-dim); }
+.letter-grid.level-grid { grid-template-columns: repeat(3, 1fr); }
+.level-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 6px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.level-btn:hover { border-color: var(--accent); }
+.level-name { font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 15px; }
+.level-sub { font-size: 11px; font-weight: 600; color: var(--text-dim); }

@@ -16,6 +16,7 @@ import { createInbox, InboxError } from './inbox.mjs';
 import { cleanText, isPlayerId, isRoomCode, underLimit } from './security.mjs';
 import { campaignCategories, cleanWinnerDetails, createSponsors, publicCampaign, SponsorError, winnerFields } from './sponsors.mjs';
 import { CATEGORY_SPEC } from './category-spec.mjs';
+import WORD_DATA from './word-data.mjs';
 
 export const CATEGORY_BANK = [
   // Core categories — used first every round.
@@ -137,9 +138,9 @@ function clampTotalRounds(n) {
   return ROUND_CHOICES.includes(r) ? r : DEFAULT_ROUNDS;
 }
 
-function clampCategoryCount(n) {
+function clampCategoryCount(n, max = 12) {
   const c = Number(n) || 9;
-  return Math.min(12, Math.max(4, Math.round(c)));
+  return Math.min(max, Math.max(4, Math.round(c)));
 }
 
 // Avatar ids come from public/avatars.js; any simple id is accepted so
@@ -229,6 +230,104 @@ function sponsorCategories(sponsor) {
 function roundSponsorCategory(room) {
   const cat = room.categories.find((c) => c.id === 'sponsor');
   return cat ? sponsorCategories(room.sponsor)[cat.slot || 0] || null : null;
+}
+
+// ---------------------------------------------------------------------------
+// Word Blitz: every player gets the same words with letters missing, one per
+// category, in the language the room creator picked. 10 points per word
+// completed; players tap "Done" to stop their clock, and the round goes to
+// whoever has the most words right, then the earliest finish. The round
+// winner picks the next round's difficulty.
+// ---------------------------------------------------------------------------
+
+export const WORD_CATEGORIES = ['country', 'capital', 'city', 'fruit', 'vegetable', 'animal', 'food', 'job', 'sport', 'brand'];
+// Share of letters shown (besides the first one, which always is).
+const DIFFICULTY_SHOWN = { easy: 0.55, medium: 0.4, hard: 0.25 };
+const WORD_POINTS = 10;
+
+const isWordGame = (room) => room.gameType === 'word';
+const plainWord = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+
+// The word with letters hidden: an array of letters, null where one is missing.
+function maskWord(word, level) {
+  const chars = [...word];
+  const letters = chars.map((c, i) => (/\p{L}/u.test(c) ? i : -1)).filter((i) => i >= 0);
+  const rest = letters.slice(1);
+  const showCount = Math.min(rest.length - 2, Math.round(rest.length * DIFFICULTY_SHOWN[level]));
+  const shown = new Set([letters[0], ...shuffle(rest).slice(0, Math.max(0, showCount))]);
+  return chars.map((c, i) => (shown.has(i) ? c.toUpperCase() : null));
+}
+
+function startWordRound(room, level, now) {
+  room.round += 1;
+  room.letter = null;
+  room.difficulty = level;
+  const bank = WORD_DATA[room.wordLang] || WORD_DATA.en;
+  const cats = shuffle(WORD_CATEGORIES.filter((c) => (bank[c] || []).length)).slice(0, room.categoriesPerRound);
+  room.usedWords = room.usedWords || [];
+  room.words = {};
+  room.categories = cats.map((id) => {
+    // A word not played yet in this room, if any are left.
+    const fresh = bank[id].filter((w) => !room.usedWords.includes(`${id}|${w.word}`));
+    const pool = fresh.length ? fresh : bank[id];
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    room.usedWords.push(`${id}|${pick.word}`);
+    room.words[id] = pick.word;
+    return { id, label: id, pattern: maskWord(pick.word, level) };
+  });
+  room.phase = 'playing';
+  room.startedAt = now + COUNTDOWN_MS;
+  room.answers = {};
+  room.finished = {};
+  room.reveal = null;
+  room.checkingSince = null;
+}
+
+// Everyone online has tapped "Done": the round can end early.
+function allFinished(room, now) {
+  if (!isWordGame(room) || room.phase !== 'playing') return false;
+  const online = Object.values(room.players).filter((p) => isOnline(p, now));
+  return online.length > 0 && online.every((p) => room.finished && room.finished[p.id]);
+}
+
+// How long a player took this round: until "Done", or the whole round.
+function finishTime(room, playerId) {
+  const at = room.finished && room.finished[playerId];
+  return at ? Math.min(room.duration, Math.max(0, at - room.startedAt)) : room.duration;
+}
+
+function scoreWordRound(room) {
+  const players = Object.values(room.players);
+  const bank = WORD_DATA[room.wordLang] || WORD_DATA.en;
+  const perCategory = room.categories.map((cat) => {
+    const word = room.words[cat.id];
+    const entry = (bank[cat.id] || []).find((w) => w.word === word);
+    const entries = players.map((p) => {
+      const text = String((room.answers[p.id] || {})[cat.id] || '').trim();
+      const correct = !!text && plainWord(text) === plainWord(word);
+      return { playerId: p.id, text, correct, points: correct ? WORD_POINTS : 0 };
+    });
+    return { catId: cat.id, label: cat.label, word, pattern: cat.pattern, meaning: entry ? entry.meaning : null, entries };
+  });
+
+  const roundScores = {};
+  const correct = {};
+  const times = {};
+  for (const p of players) {
+    correct[p.id] = perCategory.filter((c) => c.entries.find((e) => e.playerId === p.id).correct).length;
+    roundScores[p.id] = correct[p.id] * WORD_POINTS;
+    times[p.id] = finishTime(room, p.id);
+    p.totalScore += roundScores[p.id];
+    p.totalTime = (p.totalTime || 0) + times[p.id];
+  }
+  // Most words right, then the earliest finish.
+  const ranked = [...players].sort((a, b) => correct[b.id] - correct[a.id] || times[a.id] - times[b.id]);
+  const winnerId = ranked.length && correct[ranked[0].id] > 0 ? ranked[0].id : null;
+
+  room.phase = 'reveal';
+  room.checkingSince = null;
+  const final = room.round >= (room.totalRounds || DEFAULT_ROUNDS);
+  room.reveal = { gameType: 'word', round: room.round, difficulty: room.difficulty, perCategory, roundScores, correct, times, winnerId, final };
 }
 
 function startRound(room, letter, now) {
@@ -331,12 +430,17 @@ function prizeLocked(room, now) {
 // What every player is allowed to see.
 function publicState(room, playerId, now) {
   const players = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
+  const countingDown = room.phase === 'playing' && now < room.startedAt;
   const total = room.categories.length || 1;
   const progress = {};
   if (room.phase === 'playing' || room.phase === 'checking') {
     for (const p of players) {
       const a = room.answers[p.id] || {};
-      progress[p.id] = { filled: room.categories.filter((c) => String(a[c.id] || '').trim()).length, total };
+      progress[p.id] = {
+        filled: room.categories.filter((c) => String(a[c.id] || '').trim()).length,
+        total,
+        done: !!(room.finished && room.finished[p.id]),
+      };
     }
   }
   return {
@@ -344,7 +448,13 @@ function publicState(room, playerId, now) {
     phase: room.phase,
     round: room.round,
     letter: room.phase === 'playing' && now < room.startedAt ? null : room.letter,
-    categories: room.categories,
+    // The words (Word Blitz) show once the 3-2-1 countdown is over.
+    categories: countingDown ? room.categories.map(({ id, label }) => ({ id, label })) : room.categories,
+    revealed: !countingDown,
+    gameType: room.gameType || 'letter',
+    wordLang: room.wordLang || null,
+    difficulty: room.difficulty || null,
+    yourFinishTime: room.finished && room.finished[playerId] ? finishTime(room, playerId) : null,
     startedAt: room.startedAt,
     duration: room.duration,
     categoriesPerRound: room.categoriesPerRound,
@@ -362,6 +472,7 @@ function publicState(room, playerId, now) {
       avatar: p.avatar || null,
       connected: isOnline(p, now),
       totalScore: p.totalScore,
+      totalTime: p.totalTime || 0,
     })),
     progress,
     reveal: room.phase === 'reveal' ? room.reveal : null,
@@ -486,7 +597,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
     const room = await mutate(code, (r) => {
       const t = now();
       if (r.round !== round) return false;
-      const timeUp = r.phase === 'playing' && t >= r.startedAt + r.duration + ANSWER_GRACE_MS;
+      const timeUp = r.phase === 'playing' && (t >= r.startedAt + r.duration + ANSWER_GRACE_MS || allFinished(r, t));
       const stale = r.phase === 'checking' && t - r.checkingSince > CHECK_TAKEOVER_MS;
       if (!timeUp && !stale) return false;
       r.phase = 'checking';
@@ -494,6 +605,21 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       claimed = true;
     });
     if (!claimed) return room;
+
+    // Word Blitz: answers are simply compared with the hidden words.
+    if (isWordGame(room)) {
+      let scoredWords = false;
+      const result = await mutate(code, (r) => {
+        if (r.round !== round || r.phase !== 'checking') return false;
+        scoreWordRound(r);
+        scoredWords = true;
+      });
+      if (scoredWords) {
+        const players = Object.keys(result.players).length;
+        await stats.bump({ roundsPlayed: 1, roomMs: result.duration, playerMs: result.duration * players });
+      }
+      return result;
+    }
 
     const letter = room.letter.toLowerCase();
     // The sponsor's category is checked with the rule the admin picked for it (if any).
@@ -556,6 +682,11 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         throw new GameError('too_many', 'Too many rooms created. Try again later.');
       }
       const challenge = cleanChallenge(settings.challenge);
+      const gameType = settings.gameType === 'word' ? 'word' : 'letter';
+      // Real prizes are for Letter Blitz only (for now).
+      if (gameType === 'word' && settings.sponsorId) {
+        throw new GameError('word_no_prizes', 'Real prizes are only for Letter Blitz for now.');
+      }
       const id = playerId || randomId(12);
       const t = now();
       // A "real prizes" game uses the sponsor the creator picked, if it's live.
@@ -575,7 +706,9 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           categories: [],
           startedAt: null,
           duration: clampDuration(settings.duration),
-          categoriesPerRound: clampCategoryCount(settings.categoriesPerRound),
+          gameType,
+          wordLang: gameType === 'word' ? (settings.wordLang === 'fr' ? 'fr' : 'en') : null,
+          categoriesPerRound: clampCategoryCount(settings.categoriesPerRound, gameType === 'word' ? WORD_CATEGORIES.length : 12),
           totalRounds: clampTotalRounds(settings.totalRounds),
           challenge,
           players: { [id]: { id, name: n, avatar: cleanAvatar(avatar), totalScore: 0, joinedAt: t, lastSeen: t } },
@@ -649,7 +782,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
       const me = room.players[playerId];
       if (!me) throw new GameError('not_in_room', 'You are no longer in this room.');
 
-      const timeUp = room.phase === 'playing' && t >= room.startedAt + room.duration + ANSWER_GRACE_MS;
+      const timeUp = room.phase === 'playing' && (t >= room.startedAt + room.duration + ANSWER_GRACE_MS || allFinished(room, t));
       const stale = room.phase === 'checking' && t - room.checkingSince > CHECK_TAKEOVER_MS;
       if (timeUp || stale) {
         room = await finishRound(code, room.round);
@@ -668,6 +801,7 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (!r.players[playerId]) throw new GameError('not_in_room', 'You are no longer in this room.');
         if (r.phase !== 'playing' || r.round !== round) return false;
         if (t < r.startedAt || t > r.startedAt + r.duration + ANSWER_GRACE_MS) return false;
+        if (r.finished && r.finished[playerId]) return false; // locked after "Done"
         const clean = {};
         for (const cat of r.categories) {
           const text = cleanText((answers || {})[cat.id], { max: 60 });
@@ -697,7 +831,8 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
           }
         }
         if (!r.players[r.hostId]) r.hostId = playerId;
-        startRound(r, randomLetter(), t);
+        if (isWordGame(r)) startWordRound(r, 'medium', t);
+        else startRound(r, randomLetter(), t);
         started = true;
       });
       if (started) {
@@ -717,11 +852,53 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         if (r.phase !== 'reveal') return false;
         touch(r, playerId, t);
         if (r.reveal.final) throw new GameError('game_over', 'The game is over.');
+        if (isWordGame(r)) throw new GameError('wrong_game', 'This room plays Word Blitz.');
         const winner = r.players[r.reveal.winnerId];
         const winnerAway = !winner || !isOnline(winner, t);
         const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
         if (!allowed) throw new GameError('winner_only', 'Only the round winner picks the next letter.');
         startRound(r, L, t);
+      });
+      return { room, playerId };
+    },
+
+    // Word Blitz: the player has finished — their clock stops and their
+    // answers lock. The round ends once everyone online is done.
+    async done({ code, playerId, round, answers }) {
+      let everyoneDone = false;
+      const room = await mutate(code, (r) => {
+        const t = now();
+        if (!isWordGame(r) || r.phase !== 'playing' || r.round !== round || !r.players[playerId]) return false;
+        if (t < r.startedAt || t > r.startedAt + r.duration + ANSWER_GRACE_MS) return false;
+        r.finished = r.finished || {};
+        if (r.finished[playerId]) return false;
+        const clean = {};
+        for (const cat of r.categories) {
+          const text = cleanText((answers || {})[cat.id], { max: 60 });
+          if (text) clean[cat.id] = text;
+        }
+        r.answers[playerId] = clean;
+        r.finished[playerId] = Math.min(t, r.startedAt + r.duration);
+        touch(r, playerId, t);
+        everyoneDone = allFinished(r, t);
+      });
+      return { room: everyoneDone ? await finishRound(code, round) : room, playerId };
+    },
+
+    // Word Blitz: the round winner (or the host, if they're away) picks the
+    // next round's difficulty, which starts it.
+    async chooseDifficulty({ code, playerId, level }) {
+      if (!Object.hasOwn(DIFFICULTY_SHOWN, level)) throw new GameError('invalid_level', 'Pick a difficulty.');
+      const room = await mutate(code, (r) => {
+        const t = now();
+        if (r.phase !== 'reveal' || !isWordGame(r)) return false;
+        touch(r, playerId, t);
+        if (r.reveal.final) throw new GameError('game_over', 'The game is over.');
+        const winner = r.players[r.reveal.winnerId];
+        const winnerAway = !winner || !isOnline(winner, t);
+        const allowed = playerId === r.reveal.winnerId || (winnerAway && playerId === effectiveHostId(r, t));
+        if (!allowed) throw new GameError('winner_only_level', 'Only the round winner picks the difficulty.');
+        startWordRound(r, level, t);
       });
       return { room, playerId };
     },
@@ -952,7 +1129,11 @@ export function createGame(store, { now = () => Date.now(), verify = checkCatego
         r.prizeResult = null;
         r.prizes = null;
         r.prizeLockUntil = 0;
-        for (const p of Object.values(r.players)) p.totalScore = 0;
+        r.finished = {};
+        for (const p of Object.values(r.players)) {
+          p.totalScore = 0;
+          p.totalTime = 0;
+        }
       });
       return { room, playerId };
     },

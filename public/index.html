@@ -147,6 +147,27 @@
         </div>
 
         <div class="card" id="panel-create" hidden>
+          <!-- Which game: Letter Blitz or Word Blitz -->
+          <div class="field">
+            <span class="field-label" id="game-pick-label" data-i18n="whichGame">Game</span>
+            <div class="game-type game-pick" id="game-pick" role="radiogroup" aria-labelledby="game-pick-label">
+              <button type="button" role="radio" data-game="letter">
+                <span class="gt-title">Letter Blitz</span>
+                <span class="gt-sub" data-i18n="letterBlitzSub">One letter, fill every category</span>
+              </button>
+              <button type="button" role="radio" data-game="word">
+                <span class="gt-title">Word Blitz</span>
+                <span class="gt-sub" data-i18n="wordBlitzSub">Complete words with missing letters</span>
+              </button>
+            </div>
+          </div>
+          <div class="field" id="word-lang-field" hidden>
+            <span class="field-label" id="word-lang-label" data-i18n="wordLanguage">Words in</span>
+            <div class="round-choice" id="word-lang-choice" role="radiogroup" aria-labelledby="word-lang-label">
+              <button type="button" role="radio" data-word-lang="en">English</button>
+              <button type="button" role="radio" data-word-lang="fr">Français</button>
+            </div>
+          </div>
           <!-- Only shown when the admin has a sponsor campaign running -->
           <div class="field" id="game-type-field" hidden>
             <span class="field-label" id="game-type-label" data-i18n="gameType"
@@ -858,6 +879,14 @@
           >
             Join another room
           </button>
+          <button
+            type="button"
+            class="text-btn closed-home"
+            id="btn-closed-home"
+            data-i18n="backToHome"
+          >
+            Back to home
+          </button>
         </div>
         <footer class="credit">
           <span data-i18n="poweredBy">Powered by</span>
@@ -982,7 +1011,7 @@
 
         <div class="letter-hero">
           <div class="round-counter" id="round-counter"></div>
-          <div class="letter-hero-label" data-i18n="yourLetter">
+          <div class="letter-hero-label" id="round-hero-label" data-i18n="yourLetter">
             Your letter
           </div>
           <div class="letter-hero-letter" id="round-letter">L</div>
@@ -991,6 +1020,12 @@
         <div class="progress-row" id="progress-row"></div>
 
         <form class="category-list" id="category-list"></form>
+
+        <!-- Word Blitz: tap when finished to stop your clock -->
+        <div class="done-bar" id="done-bar" hidden>
+          <button type="button" class="btn btn-primary" id="btn-done" data-i18n="doneButton">Done ✓</button>
+          <p class="done-note" id="done-note" hidden></p>
+        </div>
 
         <button
           type="button"
@@ -1092,7 +1127,7 @@
         </div>
 
         <div class="letter-picker" id="letter-picker" hidden>
-          <p class="letter-picker-title" data-i18n="pickNextLetter">
+          <p class="letter-picker-title" id="letter-picker-title" data-i18n="pickNextLetter">
             You won the round &mdash; pick the next letter
           </p>
           <div class="letter-grid" id="letter-grid"></div>
@@ -1123,6 +1158,19 @@
       <button type="button" class="btn btn-primary btn-sm" id="btn-keep-open" data-i18n="keepRoomOpen">
         Keep it open
       </button>
+    </div>
+
+    <!-- Word Blitz: what a word means (from Wikipedia) -->
+    <div class="modal-backdrop" id="meaning-modal" hidden>
+      <div class="modal meaning-modal" role="dialog" aria-modal="true" aria-labelledby="meaning-word">
+        <p class="meaning-cat" id="meaning-cat"></p>
+        <h2 class="modal-title" id="meaning-word"></h2>
+        <p class="modal-text" id="meaning-text"></p>
+        <p class="meaning-source" data-i18n="meaningSource">Source: Wikipedia</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-primary" id="btn-meaning-close" data-i18n="close">Close</button>
+        </div>
+      </div>
     </div>
 
     <div class="modal-backdrop" id="feedback-modal" hidden>

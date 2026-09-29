@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "netlify dev",
     "build-categories": "node scripts/build-categories.mjs",
+    "build-words": "node scripts/build-words.mjs",
     "export-data": "node scripts/export-admin-data.mjs"
   },
   "dependencies": {

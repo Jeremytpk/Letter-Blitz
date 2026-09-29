@@ -12,6 +12,25 @@ the whole game runs on **Netlify** &mdash; the page from `public/`, the game log
 in a Netlify Function (`netlify/functions/game.mjs`), and rooms stored in
 Netlify Blobs. Each phone checks in about once a second to stay in sync.
 
+## Word Blitz
+
+A second game, chosen when creating a room (for fun rooms only, for now).
+Everyone gets the same words with letters missing, one per category
+(country, capital, city, fruit, vegetable, animal, food, job, sport,
+brand), in English or French as the room creator picks — e.g.
+`P _ N E _ P _ L E`. Players type the whole word (accents and capitals
+don't matter) and tap **Done** to stop their clock; the round ends when
+everyone online is done or time runs out. 10 points per word; the round
+goes to whoever has the most words right, then the earliest finish, and
+they pick the next round's difficulty (Easy / Medium / Hard: how many
+letters are shown). A tie on points at the end goes to the fastest overall.
+After each round, an ⓘ next to each word shows its meaning (from
+Wikipedia) in the player's language.
+
+The words live in `scripts/word-list.mjs`; `npm run build-words` fetches
+their meanings into `netlify/lib/word-data.mjs` and lists any word that
+needs a look.
+
 ## Deploy
 
 1. On [netlify.com](https://netlify.com), **Add new site \+ Import from Git** and
